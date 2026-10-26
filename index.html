@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tracks of Bengal — Bangladesh Railway Two-Player Co-Op Simulator (বাংলাদেশ রেলওয়ে সিমুলেটর)</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- TOP COMMAND & ROUTE SELECTOR BAR -->
+  <header class="top-header">
+    <div class="brand-block">
+      <div class="br-emblem" title="Bangladesh Railway Emblem"></div>
+      <div class="brand-titles">
+        <h1>TRACKS OF BENGAL: BANGLADESH RAILWAY 2P CO-OP SIMULATOR</h1>
+        <div class="subtitle-bn">বাংলাদেশ রেলওয়ে টু-প্লেয়ার কো-অপ লোকোমোটিভ সিমুলেটর (MG / BG / Dual-Gauge)</div>
+      </div>
+    </div>
+
+    <div class="selector-bar">
+      <select id="routeSelectDropdown" class="sim-select" title="Select Bangladesh Railway Route"></select>
+      <select id="locoSelectDropdown" class="sim-select" title="Select Locomotive Class"></select>
+      <select id="weatherSelectDropdown" class="sim-select" title="Select Weather & Time">
+        <option value="clear_sunset">🌅 Golden Godhuli Sunset</option>
+        <option value="clear_day">☀️ Clear Bengal Day</option>
+        <option value="monsoon_rain">🌧️ Monsoon Deluge (Barsha)</option>
+        <option value="winter_fog">🌫️ Jamuna Winter Fog (Kuasha)</option>
+        <option value="night_express">🌙 Night Express Headlight</option>
+      </select>
+      <button id="btnCycleCamera" class="top-btn">🎥 View: CAB COOP [V]</button>
+      <button id="btnToggleMap" class="top-btn">🗺️ Full BR Network Map [M]</button>
+      <button id="btnToggleAiAlp" class="top-btn">👥 2P Manual Co-Op</button>
+      <button id="btnMuteAudio" class="top-btn">🔊 Audio Live</button>
+    </div>
+  </header>
+
+  <!-- MAIN WORKSPACE -->
+  <main class="sim-main-grid">
+
+    <!-- LEFT COLUMN: 3D CAB/WORLD VIEWPORT + TRACK PROFILE + 2-PLAYER CO-OP CONTROLS -->
+    <section class="viewport-column">
+
+      <!-- 3D SIMULATION CANVAS & FLOATING HUD -->
+      <div class="canvas-wrapper">
+        <canvas id="simViewportCanvas" width="1024" height="540"></canvas>
+
+        <!-- Floating Top Telemetry Overlay -->
+        <div class="hud-floating-top">
+          <div class="telemetry-pill-group">
+            <div class="telemetry-card">
+              <div class="lbl">Speed / Limit</div>
+              <div class="val" id="hudSpeedVal">0 km/h</div>
+              <div class="sub" id="hudLimitVal">Limit: 90 km/h</div>
+            </div>
+            <div class="telemetry-card">
+              <div class="lbl">Throttle / Reverser</div>
+              <div class="val" id="hudNotchVal">IDLE (N0)</div>
+              <div class="sub" id="hudReverserVal">FORWARD</div>
+            </div>
+            <div class="telemetry-card">
+              <div class="lbl">A9 Train Brake</div>
+              <div class="val" id="hudAutoBrakeVal">RELEASE / RUN (5.0)</div>
+              <div class="sub" id="hudBpVal">BP: 5.0 | BC: 1.2 kg/cm²</div>
+            </div>
+            <div class="telemetry-card">
+              <div class="lbl">Prime Mover / SA9</div>
+              <div class="val" id="hudRpmAmpsVal">315 RPM | 0 A | 72°C</div>
+              <div class="sub" id="hudIndBrakeVal">Loco Brake: 1.2 kg/cm²</div>
+            </div>
+            <div class="telemetry-card">
+              <div class="lbl">Next Station / Token</div>
+              <div class="val" id="hudNextStationVal">Dhaka Airport — 2200m</div>
+              <div class="sub">Bangladesh Railway WTT-54</div>
+            </div>
+          </div>
+
+          <div id="hudStationActionBadge" class="action-badge badge-info">
+            🛑 Release Brakes [A] &amp; Notch Up [W] to Depart
+          </div>
+        </div>
+      </div>
+
+      <!-- LIVE TRACK PROFILE RIBBON (STATIONS, BRIDGES, RAIL GATES, GRADIENTS) -->
+      <div class="profile-ribbon-bar" title="Live Route Profile: Stations, River Bridges, Level Crossings & Token Points">
+        <canvas id="trackProfileCanvas" width="1024" height="52"></canvas>
+      </div>
+
+      <!-- TWO-PLAYER ASYMMETRIC CO-OP CONTROL DECK -->
+      <div class="coop-control-deck">
+
+        <!-- PLAYER 1: LOCO PILOT (LP - DRIVING & BRAKING) -->
+        <div class="crew-panel lp-panel">
+          <div class="crew-title">
+            <span>👨‍✈️ PLAYER 1: LOCO PILOT (LP — Primary Driver)</span>
+            <span class="bn">লোকো পাইলট (ট্রেন চালনা ও ব্রেক)</span>
+          </div>
+          <div class="btn-grid">
+            <button id="btnNotchUp" class="ctrl-btn">🔼 Throttle Notch + <kbd>W</kbd></button>
+            <button id="btnBrakeRelease" class="ctrl-btn">🟢 Release Train Brake <kbd>A</kbd></button>
+            <button id="btnHorn" class="ctrl-btn horn-btn">📯 Dual-Tone Horn <kbd>SPACE</kbd></button>
+
+            <button id="btnNotchDown" class="ctrl-btn">🔽 Throttle Notch - <kbd>S</kbd></button>
+            <button id="btnBrakeApply" class="ctrl-btn">🔴 Apply Train Brake <kbd>D</kbd></button>
+            <button id="btnSander" class="ctrl-btn">⏳ Rail Sander (Grip) <kbd>X</kbd></button>
+
+            <button id="btnReverserFwd" class="ctrl-btn">⏩ Reverser Fwd/Rev <kbd>R</kbd>/<kbd>F</kbd></button>
+            <button id="btnIndBrakeDown" class="ctrl-btn">⚙️ Loco Brake -/+ <kbd>Q</kbd>/<kbd>E</kbd></button>
+            <button id="btnLpAck" class="ctrl-btn">✅ Acknowledge ALP <kbd>C</kbd></button>
+          </div>
+        </div>
+
+        <!-- PLAYER 2: ASSISTANT LOCO PILOT (ALP - SIGNALS, TOKEN HOOP, ACP & ENGINE ROOM) -->
+        <div class="crew-panel alp-panel">
+          <div class="crew-title">
+            <span>🛠️ PLAYER 2: ASSISTANT LOCO PILOT (ALP — Systems &amp; Token)</span>
+            <span class="bn">সহকারী লোকো পাইলট (টোকেন ও সিগন্যাল)</span>
+          </div>
+          <div class="btn-grid">
+            <button id="btnAlpSignal" class="ctrl-btn">📢 Call Out Signal <kbd>I</kbd></button>
+            <button id="btnAlpToken" class="ctrl-btn token-btn">🟡 Snatch Token Hoop <kbd>O</kbd></button>
+            <button id="btnAlpAcp" class="ctrl-btn">🚨 Reset Coach ACP <kbd>P</kbd></button>
+
+            <button id="btnAlpEngine" class="ctrl-btn">🔧 Engine Room / GR <kbd>K</kbd></button>
+            <button id="btnAlpGuard" class="ctrl-btn">📻 Guard VHF Flag <kbd>L</kbd></button>
+            <button id="btnAlpWipers" class="ctrl-btn">🌧️ Wipers / Lights <kbd>J</kbd></button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- RIGHT SIDEBAR: LIVE BANGLADESH RAILWAY MAP, CO-OP METRICS, CAUTION ORDERS & RADIO -->
+    <aside class="right-sidebar">
+
+      <!-- GPS NETWORK RADAR MAP -->
+      <div class="sidebar-card">
+        <h3>
+          <span>🗺️ BANGLADESH RAILWAY NETWORK</span>
+          <span style="font-size:10px; color:#10b981;">Press [M] to Enlarge</span>
+        </h3>
+        <div class="minimap-box">
+          <canvas id="miniMapCanvas" width="320" height="175"></canvas>
+        </div>
+        <div class="gauge-legend">
+          <span class="dot-mg">● Meter Gauge (1000mm)</span>
+          <span class="dot-bg">● Broad Gauge (1676mm)</span>
+          <span class="dot-dg">● Dual Gauge</span>
+        </div>
+      </div>
+
+      <!-- CREW CO-OP SERVICE BOOK SCORE -->
+      <div class="sidebar-card">
+        <h3><span>🎖️ CREW SERVICE BOOK (LP + ALP)</span><span>সার্ভিস বুক</span></h3>
+        <div class="score-row">
+          <div class="score-box">
+            <div class="s-lbl">GSR SAFETY</div>
+            <div class="s-val" id="scoreSafety">100%</div>
+          </div>
+          <div class="score-box">
+            <div class="s-lbl">CO-OP SYNERGY</div>
+            <div class="s-val" id="scoreSynergy">100%</div>
+          </div>
+          <div class="score-box">
+            <div class="s-lbl">TOKENS CAUGHT</div>
+            <div class="s-val" id="scoreTokens">0</div>
+          </div>
+          <div class="score-box">
+            <div class="s-lbl">SIGNALS CALLED</div>
+            <div class="s-val" id="scoreSignals">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FORM T/409 CAUTION ORDER CLIPBOARD -->
+      <div class="sidebar-card">
+        <h3><span>📋 CAUTION ORDER (FORM T/409)</span><span>সতর্কতা আদেশ</span></h3>
+        <div id="cautionOrderList" class="caution-box"></div>
+      </div>
+
+      <!-- BILINGUAL VHF RADIO, GUARD & STATION HAWKER FEED -->
+      <div class="sidebar-card comms-card">
+        <h3><span>📻 CAB VHF, PA &amp; TRACKSIDE AUDIO LOG</span><span>বেতার বার্তা</span></h3>
+        <div id="commsLogFeed" class="comms-feed"></div>
+      </div>
+
+    </aside>
+
+  </main>
+
+  <!-- FULL-SCREEN INTERACTIVE BANGLADESH RAILWAY NETWORK MAP MODAL -->
+  <div id="fullMapModal" class="modal-backdrop hidden">
+    <div class="map-modal-window">
+      <div class="map-modal-header">
+        <div>
+          <strong style="font-size:15px; color:#ecfdf5;">🗺️ COMPLETE BANGLADESH RAILWAY NETWORK MAP (EAST &amp; WEST ZONES)</strong>
+          <div style="font-size:11px; color:#fbbf24;">All Major Stations, River Crossings (Padma, Jamuna, Meghna, Hardinge, Kalurghat) &amp; Multi-Gauge Corridors</div>
+        </div>
+        <button id="btnCloseMapModal" class="top-btn">✖ Close Map [M]</button>
+      </div>
+      <div class="map-modal-body">
+        <canvas id="fullMapCanvas" width="940" height="620"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPTS (Loaded sequentially in global namespace so both file:// and http:// work seamlessly) -->
+  <script src="js/railwayData.js"></script>
+  <script src="js/audioEngine.js"></script>
+  <script src="js/physicsEngine.js"></script>
+  <script src="js/mapEngine.js"></script>
+  <script src="js/renderer3D.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
+

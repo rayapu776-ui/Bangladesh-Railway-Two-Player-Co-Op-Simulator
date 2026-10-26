@@ -1,0 +1,539 @@
+/* ============================================================================
+   TRACKS OF BENGAL: BANGLADESH RAILWAY CO-OP SIMULATOR
+   Stylesheet: Authentic Bangladesh Railway Green, Vermilion & Cab Brass Theme
+   ============================================================================ */
+
+:root {
+  --br-green: #006a4e;
+  --br-green-light: #10b981;
+  --br-red: #f42a41;
+  --br-gold: #fbbf24;
+  --bg-dark: #060c14;
+  --panel-bg: #0f172a;
+  --panel-border: #1e293b;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+
+/* TOP COMMAND HEADER */
+.top-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: linear-gradient(90deg, #042f2e 0%, #0f172a 55%, #1e1b4b 100%);
+  border-bottom: 2px solid var(--br-green-light);
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.brand-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.br-emblem {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--br-green);
+  border: 2px solid var(--br-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.br-emblem::after {
+  content: "";
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--br-red);
+}
+
+.brand-titles h1 {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  color: #ecfdf5;
+}
+
+.brand-titles .subtitle-bn {
+  font-size: 11px;
+  color: var(--br-gold);
+}
+
+.selector-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sim-select {
+  background: #09111e;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  padding: 5px 9px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.top-btn {
+  background: #1e293b;
+  color: #f8fafc;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.top-btn:hover {
+  background: var(--br-green);
+  border-color: var(--br-gold);
+}
+
+.top-btn.active-pill {
+  background: var(--br-green);
+  border-color: var(--br-gold);
+  color: #fff;
+}
+
+/* MAIN WORKSPACE GRID */
+.sim-main-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 8px;
+  padding: 8px;
+  min-height: 0;
+}
+
+.viewport-column {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.canvas-wrapper {
+  position: relative;
+  flex: 1;
+  background: #020617;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+#simViewportCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* FLOATING TELEMETRY OVERLAY ON TOP OF 3D CANVAS */
+.hud-floating-top {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+  gap: 10px;
+}
+
+.telemetry-pill-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.telemetry-card {
+  background: rgba(9, 13, 22, 0.84);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-left: 3px solid var(--br-green-light);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.telemetry-card .lbl {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.telemetry-card .val {
+  font-size: 15px;
+  font-weight: 800;
+  color: #f8fafc;
+  font-family: Consolas, monospace;
+}
+
+.telemetry-card .sub {
+  font-size: 11px;
+  color: var(--br-gold);
+}
+
+.action-badge {
+  padding: 7px 13px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.badge-info {
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid #38bdf8;
+  color: #e0f2fe;
+}
+
+.badge-warning {
+  background: rgba(120, 53, 15, 0.94);
+  border: 2px solid #facc15;
+  color: #fef9c3;
+}
+
+.badge-danger {
+  background: rgba(127, 29, 29, 0.95);
+  border: 2px solid #f87171;
+  color: #fee2e2;
+}
+
+.badge-ok {
+  background: rgba(6, 78, 59, 0.94);
+  border: 2px solid #34d399;
+  color: #d1fae5;
+}
+
+/* TRACK PROFILE RIBBON */
+.profile-ribbon-bar {
+  height: 52px;
+  background: #09111a;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+#trackProfileCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* TWO-PLAYER CO-OP CONTROL DECK (BOTTOM) */
+.coop-control-deck {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.crew-panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.crew-panel.lp-panel {
+  border-top: 3px solid #38bdf8;
+}
+
+.crew-panel.alp-panel {
+  border-top: 3px solid var(--br-gold);
+}
+
+.crew-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  margin-bottom: 6px;
+  color: #e2e8f0;
+}
+
+.crew-title span.bn {
+  color: var(--br-gold);
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.btn-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+
+.ctrl-btn {
+  background: #1e293b;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: 5px;
+  padding: 6px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition: background 0.12s;
+}
+
+.ctrl-btn:hover {
+  background: #334155;
+  border-color: #64748b;
+}
+
+.ctrl-btn:active {
+  transform: translateY(1px);
+}
+
+.ctrl-btn kbd {
+  background: #090d16;
+  color: var(--br-gold);
+  border: 1px solid #475569;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-family: Consolas, monospace;
+}
+
+.ctrl-btn.horn-btn {
+  background: #7c2d12;
+  border-color: #f97316;
+}
+
+.ctrl-btn.token-btn {
+  background: #065f46;
+  border-color: #10b981;
+}
+
+/* RIGHT SIDEBAR: LIVE MAP, CAUTION ORDERS, & RADIO FEED */
+.right-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.sidebar-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidebar-card h3 {
+  font-size: 12px;
+  font-weight: 800;
+  color: #cbd5e1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.minimap-box {
+  position: relative;
+  height: 175px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #334155;
+}
+
+#miniMapCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.gauge-legend {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #cbd5e1;
+}
+
+.dot-mg { color: #38bdf8; font-weight: bold; }
+.dot-bg { color: #fb7185; font-weight: bold; }
+.dot-dg { color: #fbbf24; font-weight: bold; }
+
+.score-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.score-box {
+  background: #09111e;
+  border: 1px solid #1e293b;
+  border-radius: 5px;
+  padding: 4px;
+  text-align: center;
+}
+
+.score-box .s-lbl {
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+.score-box .s-val {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--br-green-light);
+}
+
+/* CAUTION ORDER CLIPBOARD */
+.caution-box {
+  background: #1c1917;
+  border: 1px solid #78350f;
+  border-left: 3px solid var(--br-gold);
+  border-radius: 5px;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+
+.co-header {
+  font-weight: 800;
+  color: var(--br-gold);
+  margin-bottom: 3px;
+}
+
+.co-item {
+  color: #fef3c7;
+  font-size: 10.5px;
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
+/* RADIO & BILINGUAL PA LOG FEED */
+.comms-card {
+  flex: 1;
+  min-height: 0;
+}
+
+.comms-feed {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-right: 3px;
+}
+
+.comms-entry {
+  background: #09111e;
+  border: 1px solid #1e293b;
+  border-radius: 5px;
+  padding: 5px 7px;
+  font-size: 11px;
+}
+
+.comms-badge {
+  display: inline-block;
+  background: var(--br-green);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-bottom: 2px;
+}
+
+.comms-bn {
+  color: var(--br-gold);
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.comms-en {
+  color: #e2e8f0;
+  font-size: 10.5px;
+}
+
+/* FULL-SCREEN INTERACTIVE BANGLADESH RAILWAY MAP MODAL */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.88);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.modal-backdrop.hidden {
+  display: none;
+}
+
+.map-modal-window {
+  width: 960px;
+  max-width: 96vw;
+  height: 86vh;
+  background: #0f172a;
+  border: 2px solid var(--br-green-light);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.map-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: #042f2e;
+  border-bottom: 1px solid #1e293b;
+}
+
+.map-modal-body {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+}
+
+#fullMapCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
