@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tracks of Bengal — Bangladesh Railway Two-Player Co-Op Simulator (বাংলাদেশ রেলওয়ে সিমুলেটর)</title>
+  <title>Tracks of Bengal — Bangladesh Railway Studio 2P Co-Op Simulator (বাংলাদেশ রেলওয়ে সিমুলেটর)</title>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
@@ -11,10 +11,10 @@
   <!-- TOP COMMAND & ROUTE SELECTOR BAR -->
   <header class="top-header">
     <div class="brand-block">
-      <div class="br-emblem" title="Bangladesh Railway Emblem"></div>
+      <div class="br-emblem" title="Bangladesh Railway Official Emblem"></div>
       <div class="brand-titles">
         <h1>TRACKS OF BENGAL: BANGLADESH RAILWAY 2P CO-OP SIMULATOR</h1>
-        <div class="subtitle-bn">বাংলাদেশ রেলওয়ে টু-প্লেয়ার কো-অপ লোকোমোটিভ সিমুলেটর (MG / BG / Dual-Gauge)</div>
+        <div class="subtitle-bn">বাংলাদেশ রেলওয়ে অ্যানিমেটেড লোকোমোটিভ ও কো-অপ সিমুলেটর (MG / BG / Dual-Gauge)</div>
       </div>
     </div>
 
@@ -28,7 +28,7 @@
         <option value="winter_fog">🌫️ Jamuna Winter Fog (Kuasha)</option>
         <option value="night_express">🌙 Night Express Headlight</option>
       </select>
-      <button id="btnCycleCamera" class="top-btn">🎥 View: CAB COOP [V]</button>
+      <button id="btnCycleCamera" class="top-btn">🎥 View: STUDIO DUAL [V]</button>
       <button id="btnToggleMap" class="top-btn">🗺️ Full BR Network Map [M]</button>
       <button id="btnToggleAiAlp" class="top-btn">👥 2P Manual Co-Op</button>
       <button id="btnMuteAudio" class="top-btn">🔊 Audio Live</button>
@@ -38,12 +38,12 @@
   <!-- MAIN WORKSPACE -->
   <main class="sim-main-grid">
 
-    <!-- LEFT COLUMN: 3D CAB/WORLD VIEWPORT + TRACK PROFILE + 2-PLAYER CO-OP CONTROLS -->
+    <!-- LEFT COLUMN: STUDIO ANIMATED VIEWPORT + TRACK PROFILE + SKEUOMORPHIC 2P CONTROL STAND -->
     <section class="viewport-column">
 
-      <!-- 3D SIMULATION CANVAS & FLOATING HUD -->
+      <!-- ANIMATED TRAIN & PARALLAX WORLD CANVAS + FLOATING HUD -->
       <div class="canvas-wrapper">
-        <canvas id="simViewportCanvas" width="1024" height="540"></canvas>
+        <canvas id="simViewportCanvas" width="1080" height="500"></canvas>
 
         <!-- Floating Top Telemetry Overlay -->
         <div class="hud-floating-top">
@@ -59,14 +59,14 @@
               <div class="sub" id="hudReverserVal">FORWARD</div>
             </div>
             <div class="telemetry-card">
-              <div class="lbl">A9 Train Brake</div>
+              <div class="lbl">A9 Air Brake</div>
               <div class="val" id="hudAutoBrakeVal">RELEASE / RUN (5.0)</div>
-              <div class="sub" id="hudBpVal">BP: 5.0 | BC: 1.2 kg/cm²</div>
+              <div class="sub" id="hudBpVal">BP: 5.0 | BC: 0.0 kg/cm²</div>
             </div>
             <div class="telemetry-card">
-              <div class="lbl">Prime Mover / SA9</div>
+              <div class="lbl">Prime Mover</div>
               <div class="val" id="hudRpmAmpsVal">315 RPM | 0 A | 72°C</div>
-              <div class="sub" id="hudIndBrakeVal">Loco Brake: 1.2 kg/cm²</div>
+              <div class="sub" id="hudIndBrakeVal">Loco Brake: 0.0 kg/cm²</div>
             </div>
             <div class="telemetry-card">
               <div class="lbl">Next Station / Token</div>
@@ -76,54 +76,196 @@
           </div>
 
           <div id="hudStationActionBadge" class="action-badge badge-info">
-            🛑 Release Brakes [A] &amp; Notch Up [W] to Depart
+            🟢 Ready to Depart! Advance Throttle [W] or Drag Lever
           </div>
         </div>
       </div>
 
       <!-- LIVE TRACK PROFILE RIBBON (STATIONS, BRIDGES, RAIL GATES, GRADIENTS) -->
       <div class="profile-ribbon-bar" title="Live Route Profile: Stations, River Bridges, Level Crossings & Token Points">
-        <canvas id="trackProfileCanvas" width="1024" height="52"></canvas>
+        <canvas id="trackProfileCanvas" width="1080" height="50"></canvas>
       </div>
 
-      <!-- TWO-PLAYER ASYMMETRIC CO-OP CONTROL DECK -->
-      <div class="coop-control-deck">
+      <!-- PROFESSIONAL SKEUOMORPHIC LOCOMOTIVE CONTROL STAND (LP + ANALOG DIALS + ALP) -->
+      <div class="loco-control-stand">
 
-        <!-- PLAYER 1: LOCO PILOT (LP - DRIVING & BRAKING) -->
-        <div class="crew-panel lp-panel">
-          <div class="crew-title">
-            <span>👨‍✈️ PLAYER 1: LOCO PILOT (LP — Primary Driver)</span>
-            <span class="bn">লোকো পাইলট (ট্রেন চালনা ও ব্রেক)</span>
+        <!-- PLAYER 1: LOCO PILOT (LP) PHYSICAL LEVER & TACTILE BUTTON STAND -->
+        <div class="stand-bay lp-bay">
+          <div class="bay-header">
+            <span class="bay-badge lp-badge">👨‍✈️ PLAYER 1: LOCO PILOT (LP) CONTROL STAND</span>
+            <span class="bay-bn">লোকো পাইলট কন্ট্রোল স্ট্যান্ড</span>
           </div>
-          <div class="btn-grid">
-            <button id="btnNotchUp" class="ctrl-btn">🔼 Throttle Notch + <kbd>W</kbd></button>
-            <button id="btnBrakeRelease" class="ctrl-btn">🟢 Release Train Brake <kbd>A</kbd></button>
-            <button id="btnHorn" class="ctrl-btn horn-btn">📯 Dual-Tone Horn <kbd>SPACE</kbd></button>
 
-            <button id="btnNotchDown" class="ctrl-btn">🔽 Throttle Notch - <kbd>S</kbd></button>
-            <button id="btnBrakeApply" class="ctrl-btn">🔴 Apply Train Brake <kbd>D</kbd></button>
-            <button id="btnSander" class="ctrl-btn">⏳ Rail Sander (Grip) <kbd>X</kbd></button>
+          <div class="lp-controls-layout">
+            <!-- Physical Throttle Quadrant (IDLE..N8) -->
+            <div class="lever-quadrant">
+              <div class="quad-label">THROTTLE NOTCH <kbd>W</kbd>/<kbd>S</kbd></div>
+              <div class="notch-pips" id="throttleNotchPips">
+                <span data-notch="0" class="pip active">IDLE</span>
+                <span data-notch="1" class="pip">N1</span>
+                <span data-notch="2" class="pip">N2</span>
+                <span data-notch="3" class="pip">N3</span>
+                <span data-notch="4" class="pip">N4</span>
+                <span data-notch="5" class="pip">N5</span>
+                <span data-notch="6" class="pip">N6</span>
+                <span data-notch="7" class="pip">N7</span>
+                <span data-notch="8" class="pip">N8</span>
+              </div>
+              <div class="lever-stepper-row">
+                <button id="btnNotchDown" class="mech-step-btn" title="Decrease Throttle [S]">➖ NOTCH DOWN <kbd>S</kbd></button>
+                <button id="btnNotchUp" class="mech-step-btn accent-cyan" title="Increase Throttle [W]">➕ NOTCH UP <kbd>W</kbd></button>
+              </div>
+            </div>
 
-            <button id="btnReverserFwd" class="ctrl-btn">⏩ Reverser Fwd/Rev <kbd>R</kbd>/<kbd>F</kbd></button>
-            <button id="btnIndBrakeDown" class="ctrl-btn">⚙️ Loco Brake -/+ <kbd>Q</kbd>/<kbd>E</kbd></button>
-            <button id="btnLpAck" class="ctrl-btn">✅ Acknowledge ALP <kbd>C</kbd></button>
+            <!-- Physical Westinghouse A9 Automatic Train Brake Quadrant -->
+            <div class="lever-quadrant brake-quadrant">
+              <div class="quad-label">A9 TRAIN BRAKE <kbd>A</kbd>/<kbd>D</kbd></div>
+              <div class="notch-pips" id="brakeNotchPips">
+                <span data-brake="0" class="pip">OVR</span>
+                <span data-brake="1" class="pip active">RUN</span>
+                <span data-brake="2" class="pip">MIN</span>
+                <span data-brake="3" class="pip">SRV1</span>
+                <span data-brake="4" class="pip">SRV2</span>
+                <span data-brake="5" class="pip">FULL</span>
+                <span data-brake="6" class="pip emerg">EMRG</span>
+              </div>
+              <div class="lever-stepper-row">
+                <button id="btnBrakeRelease" class="mech-step-btn accent-green" title="Release Train Brake [A]">🟢 RELEASE <kbd>A</kbd></button>
+                <button id="btnBrakeApply" class="mech-step-btn accent-red" title="Apply Train Brake [D]">🔴 APPLY <kbd>D</kbd></button>
+              </div>
+            </div>
+
+            <!-- Tactile Industrial Push-Buttons & Horn Valve -->
+            <div class="tactile-btn-cluster">
+              <button id="btnHorn" class="hw-push-btn hw-horn">
+                <span class="led-ring" id="ledHorn"></span>
+                <span class="hw-icon">📯</span>
+                <span class="hw-title">PNEUMATIC HORN</span>
+                <kbd>SPACE</kbd>
+              </button>
+
+              <button id="btnSander" class="hw-push-btn hw-amber">
+                <span class="led-ring" id="ledSander"></span>
+                <span class="hw-icon">⏳</span>
+                <span class="hw-title">RAIL SANDER</span>
+                <kbd>X</kbd>
+              </button>
+
+              <button id="btnLpAck" class="hw-push-btn hw-emerald">
+                <span class="led-ring" id="ledLpAck"></span>
+                <span class="hw-icon">✅</span>
+                <span class="hw-title">ACK SIGNAL</span>
+                <kbd>C</kbd>
+              </button>
+
+              <button id="btnReverserFwd" class="hw-push-btn hw-steel">
+                <span class="led-ring led-on" id="ledReverser"></span>
+                <span class="hw-icon">⚙️</span>
+                <span class="hw-title" id="btnReverserLabel">REV: FWD</span>
+                <kbd>R / F</kbd>
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- PLAYER 2: ASSISTANT LOCO PILOT (ALP - SIGNALS, TOKEN HOOP, ACP & ENGINE ROOM) -->
-        <div class="crew-panel alp-panel">
-          <div class="crew-title">
-            <span>🛠️ PLAYER 2: ASSISTANT LOCO PILOT (ALP — Systems &amp; Token)</span>
-            <span class="bn">সহকারী লোকো পাইলট (টোকেন ও সিগন্যাল)</span>
+        <!-- CENTER INSTRUMENTATION CLUSTER: ILLUMINATED ANALOG DIALS & CAB SIGNAL REPEATER -->
+        <div class="stand-bay gauge-bay">
+          <div class="bay-header">
+            <span class="bay-badge gauge-badge">⏱️ CAB TELEMETRY &amp; SIGNAL ASPECT</span>
           </div>
-          <div class="btn-grid">
-            <button id="btnAlpSignal" class="ctrl-btn">📢 Call Out Signal <kbd>I</kbd></button>
-            <button id="btnAlpToken" class="ctrl-btn token-btn">🟡 Snatch Token Hoop <kbd>O</kbd></button>
-            <button id="btnAlpAcp" class="ctrl-btn">🚨 Reset Coach ACP <kbd>P</kbd></button>
+          <div class="analog-dials-row">
+            <!-- SVG Speedometer Dial -->
+            <div class="dial-widget">
+              <svg viewBox="0 0 100 100" class="dial-svg">
+                <circle cx="50" cy="50" r="45" class="dial-bezel" />
+                <circle cx="50" cy="50" r="40" class="dial-face" />
+                <path d="M 22 78 A 40 40 0 1 1 78 78" class="dial-arc" />
+                <line id="svgNeedleSpeed" x1="50" y1="50" x2="24" y2="74" class="dial-needle speed-needle" />
+                <circle cx="50" cy="50" r="5" class="dial-cap" />
+                <text x="50" y="34" class="dial-title">KM/H</text>
+                <text x="50" y="76" id="svgTextSpeed" class="dial-readout">0</text>
+              </svg>
+            </div>
 
-            <button id="btnAlpEngine" class="ctrl-btn">🔧 Engine Room / GR <kbd>K</kbd></button>
-            <button id="btnAlpGuard" class="ctrl-btn">📻 Guard VHF Flag <kbd>L</kbd></button>
-            <button id="btnAlpWipers" class="ctrl-btn">🌧️ Wipers / Lights <kbd>J</kbd></button>
+            <!-- SVG Duplex Brake Pressure Dial (BP Green & BC Red) -->
+            <div class="dial-widget">
+              <svg viewBox="0 0 100 100" class="dial-svg">
+                <circle cx="50" cy="50" r="45" class="dial-bezel" />
+                <circle cx="50" cy="50" r="40" class="dial-face" />
+                <path d="M 22 78 A 40 40 0 1 1 78 78" class="dial-arc" />
+                <line id="svgNeedleBp" x1="50" y1="50" x2="72" y2="50" class="dial-needle bp-needle" />
+                <line id="svgNeedleBc" x1="50" y1="50" x2="24" y2="74" class="dial-needle bc-needle" />
+                <circle cx="50" cy="50" r="5" class="dial-cap" />
+                <text x="50" y="34" class="dial-title">BP / BC</text>
+                <text x="50" y="76" id="svgTextBp" class="dial-readout">5.0</text>
+              </svg>
+            </div>
+
+            <!-- Live 3-Lens Cab Signal Repeater Unit -->
+            <div class="cab-signal-pillar">
+              <div class="sig-lens lens-green active" id="lensGreen" title="Line Clear (Green)"></div>
+              <div class="sig-lens lens-yellow" id="lensYellow" title="Caution / Loop Line (Yellow)"></div>
+              <div class="sig-lens lens-red" id="lensRed" title="Danger / Stop (Red)"></div>
+              <div class="sig-lbl" id="cabSignalText">GREEN</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PLAYER 2: ASSISTANT LOCO PILOT (ALP) TACTILE SYSTEMS & TOKEN CONSOLE -->
+        <div class="stand-bay alp-bay">
+          <div class="bay-header">
+            <span class="bay-badge alp-badge">🛠️ PLAYER 2: ASSISTANT PILOT (ALP) CONSOLE</span>
+            <span class="bay-bn">সহকারী পাইলট ও টোকেন হুপ</span>
+          </div>
+
+          <div class="alp-controls-grid">
+            <button id="btnAlpSignal" class="hw-push-btn hw-cyan">
+              <span class="led-ring" id="ledAlpSignal"></span>
+              <span class="hw-icon">📢</span>
+              <span class="hw-title">CALL SIGNAL</span>
+              <span class="hw-sub">সিগন্যাল কল</span>
+              <kbd>I</kbd>
+            </button>
+
+            <button id="btnAlpToken" class="hw-push-btn hw-gold">
+              <span class="led-ring" id="ledAlpToken"></span>
+              <span class="hw-icon">🟡</span>
+              <span class="hw-title">SNATCH TOKEN</span>
+              <span class="hw-sub">টোকেন হুপ (15-30)</span>
+              <kbd>O</kbd>
+            </button>
+
+            <button id="btnAlpAcp" class="hw-push-btn hw-crimson">
+              <span class="led-ring" id="ledAlpAcp"></span>
+              <span class="hw-icon">🚨</span>
+              <span class="hw-title">RESET ACP VALVE</span>
+              <span class="hw-sub">চেইন পুল রিসেট</span>
+              <kbd>P</kbd>
+            </button>
+
+            <button id="btnAlpEngine" class="hw-push-btn hw-orange">
+              <span class="led-ring" id="ledAlpEngine"></span>
+              <span class="hw-icon">🔧</span>
+              <span class="hw-title">ENGINE / GR RESET</span>
+              <span class="hw-sub">ইঞ্জিন ও লুভার</span>
+              <kbd>K</kbd>
+            </button>
+
+            <button id="btnAlpGuard" class="hw-push-btn hw-emerald">
+              <span class="led-ring led-on"></span>
+              <span class="hw-icon">📻</span>
+              <span class="hw-title">GUARD VHF RADIO</span>
+              <span class="hw-sub">গার্ডের সবুজ পতাকা</span>
+              <kbd>L</kbd>
+            </button>
+
+            <button id="btnAlpWipers" class="hw-push-btn hw-steel">
+              <span class="led-ring" id="ledAlpWipers"></span>
+              <span class="hw-icon">🌧️</span>
+              <span class="hw-title">WIPERS &amp; LAMPS</span>
+              <span class="hw-sub">ওয়াইপার ও লাইট</span>
+              <kbd>J</kbd>
+            </button>
           </div>
         </div>
 
@@ -137,14 +279,14 @@
       <div class="sidebar-card">
         <h3>
           <span>🗺️ BANGLADESH RAILWAY NETWORK</span>
-          <span style="font-size:10px; color:#10b981;">Press [M] to Enlarge</span>
+          <span style="font-size:10px; color:#10b981;">Press [M] Full Map</span>
         </h3>
         <div class="minimap-box">
-          <canvas id="miniMapCanvas" width="320" height="175"></canvas>
+          <canvas id="miniMapCanvas" width="320" height="165"></canvas>
         </div>
         <div class="gauge-legend">
-          <span class="dot-mg">● Meter Gauge (1000mm)</span>
-          <span class="dot-bg">● Broad Gauge (1676mm)</span>
+          <span class="dot-mg">● Meter Gauge</span>
+          <span class="dot-bg">● Broad Gauge</span>
           <span class="dot-dg">● Dual Gauge</span>
         </div>
       </div>
@@ -204,7 +346,7 @@
     </div>
   </div>
 
-  <!-- SCRIPTS (Loaded sequentially in global namespace so both file:// and http:// work seamlessly) -->
+  <!-- SCRIPTS -->
   <script src="js/railwayData.js"></script>
   <script src="js/audioEngine.js"></script>
   <script src="js/physicsEngine.js"></script>
@@ -213,4 +355,3 @@
   <script src="js/main.js"></script>
 </body>
 </html>
-

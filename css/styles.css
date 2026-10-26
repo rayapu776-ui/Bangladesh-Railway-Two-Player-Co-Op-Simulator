@@ -1,6 +1,6 @@
 /* ============================================================================
    TRACKS OF BENGAL: BANGLADESH RAILWAY CO-OP SIMULATOR
-   Stylesheet: Authentic Bangladesh Railway Green, Vermilion & Cab Brass Theme
+   Stylesheet: Professional Brushed-Steel Cab Desk, Tactile Buttons & SVG Dials
    ============================================================================ */
 
 :root {
@@ -8,8 +8,8 @@
   --br-green-light: #10b981;
   --br-red: #f42a41;
   --br-gold: #fbbf24;
-  --bg-dark: #060c14;
-  --panel-bg: #0f172a;
+  --bg-dark: #050911;
+  --panel-bg: #0c1424;
   --panel-border: #1e293b;
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
@@ -37,10 +37,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
-  background: linear-gradient(90deg, #042f2e 0%, #0f172a 55%, #1e1b4b 100%);
+  padding: 7px 14px;
+  background: linear-gradient(90deg, #032b22 0%, #0b1526 55%, #1e1b4b 100%);
   border-bottom: 2px solid var(--br-green-light);
-  gap: 12px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.5);
+  gap: 10px;
   flex-shrink: 0;
 }
 
@@ -54,8 +55,9 @@ body {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: var(--br-green);
+  background: radial-gradient(circle at 30% 30%, #059669, #006a4e);
   border: 2px solid var(--br-gold);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -64,14 +66,14 @@ body {
 
 .br-emblem::after {
   content: "";
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
-  background: var(--br-red);
+  background: radial-gradient(circle at 35% 35%, #ff5c70, #f42a41);
 }
 
 .brand-titles h1 {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 800;
   letter-spacing: 0.4px;
   color: #ecfdf5;
@@ -85,49 +87,50 @@ body {
 .selector-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   flex-wrap: wrap;
 }
 
 .sim-select {
-  background: #09111e;
+  background: linear-gradient(180deg, #131f33 0%, #09101c 100%);
   color: #f8fafc;
   border: 1px solid #334155;
   border-radius: 6px;
-  padding: 5px 9px;
-  font-size: 12px;
-  font-weight: 600;
+  padding: 5px 8px;
+  font-size: 11.5px;
+  font-weight: 700;
   cursor: pointer;
 }
 
 .top-btn {
-  background: #1e293b;
+  background: linear-gradient(180deg, #26354d 0%, #152033 100%);
   color: #f8fafc;
   border: 1px solid #475569;
+  border-bottom: 2px solid #0f172a;
   border-radius: 6px;
   padding: 5px 10px;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.14s ease;
 }
 
 .top-btn:hover {
-  background: var(--br-green);
+  background: linear-gradient(180deg, #059669 0%, #006a4e 100%);
   border-color: var(--br-gold);
 }
 
 .top-btn.active-pill {
-  background: var(--br-green);
+  background: linear-gradient(180deg, #059669 0%, #006a4e 100%);
   border-color: var(--br-gold);
-  color: #fff;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
 }
 
 /* MAIN WORKSPACE GRID */
 .sim-main-grid {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: 1fr 330px;
   gap: 8px;
   padding: 8px;
   min-height: 0;
@@ -144,10 +147,11 @@ body {
   position: relative;
   flex: 1;
   background: #020617;
-  border: 1px solid #334155;
+  border: 2px solid #334155;
   border-radius: 8px;
   overflow: hidden;
   min-height: 0;
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.8);
 }
 
 #simViewportCanvas {
@@ -156,70 +160,69 @@ body {
   display: block;
 }
 
-/* FLOATING TELEMETRY OVERLAY ON TOP OF 3D CANVAS */
+/* FLOATING TELEMETRY OVERLAY */
 .hud-floating-top {
   position: absolute;
-  top: 10px;
-  left: 12px;
-  right: 12px;
+  top: 8px;
+  left: 10px;
+  right: 10px;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   pointer-events: none;
-  gap: 10px;
+  gap: 8px;
 }
 
 .telemetry-pill-group {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 .telemetry-card {
-  background: rgba(9, 13, 22, 0.84);
+  background: rgba(8, 13, 24, 0.85);
   backdrop-filter: blur(6px);
-  border: 1px solid rgba(148, 163, 184, 0.28);
+  border: 1px solid rgba(148, 163, 184, 0.3);
   border-left: 3px solid var(--br-green-light);
   border-radius: 6px;
-  padding: 6px 10px;
+  padding: 5px 9px;
 }
 
 .telemetry-card .lbl {
-  font-size: 10px;
+  font-size: 9.5px;
   text-transform: uppercase;
   color: var(--text-muted);
   font-weight: 700;
 }
 
 .telemetry-card .val {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 800;
   color: #f8fafc;
   font-family: Consolas, monospace;
 }
 
 .telemetry-card .sub {
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--br-gold);
 }
 
 .action-badge {
-  padding: 7px 13px;
+  padding: 6px 12px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 800;
-  letter-spacing: 0.3px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
 }
 
 .badge-info {
-  background: rgba(15, 23, 42, 0.9);
+  background: rgba(15, 23, 42, 0.92);
   border: 1px solid #38bdf8;
   color: #e0f2fe;
 }
 
 .badge-warning {
-  background: rgba(120, 53, 15, 0.94);
+  background: rgba(120, 53, 15, 0.95);
   border: 2px solid #facc15;
   color: #fef9c3;
 }
@@ -231,15 +234,15 @@ body {
 }
 
 .badge-ok {
-  background: rgba(6, 78, 59, 0.94);
+  background: rgba(6, 78, 59, 0.95);
   border: 2px solid #34d399;
   color: #d1fae5;
 }
 
 /* TRACK PROFILE RIBBON */
 .profile-ribbon-bar {
-  height: 52px;
-  background: #09111a;
+  height: 46px;
+  background: #08101c;
   border: 1px solid #1e293b;
   border-radius: 6px;
   overflow: hidden;
@@ -252,101 +255,384 @@ body {
   display: block;
 }
 
-/* TWO-PLAYER CO-OP CONTROL DECK (BOTTOM) */
-.coop-control-deck {
+/* ============================================================================
+   PROFESSIONAL SKEUOMORPHIC LOCOMOTIVE CONTROL STAND (BOTTOM CONSOLE)
+   ============================================================================ */
+.loco-control-stand {
   display: grid;
-  grid-template-columns: 1.15fr 1fr;
+  grid-template-columns: 1.25fr 0.78fr 1.05fr;
   gap: 8px;
   flex-shrink: 0;
 }
 
-.crew-panel {
-  background: var(--panel-bg);
-  border: 1px solid var(--panel-border);
+.stand-bay {
+  background: linear-gradient(180deg, #162133 0%, #0b121e 100%);
+  border: 1px solid #334155;
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 7px 9px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 12px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.crew-panel.lp-panel {
-  border-top: 3px solid #38bdf8;
-}
+.lp-bay { border-top: 3px solid #38bdf8; }
+.gauge-bay { border-top: 3px solid #10b981; }
+.alp-bay { border-top: 3px solid var(--br-gold); }
 
-.crew-panel.alp-panel {
-  border-top: 3px solid var(--br-gold);
-}
-
-.crew-title {
+.bay-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
-  font-weight: 800;
-  margin-bottom: 6px;
-  color: #e2e8f0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  padding-bottom: 4px;
 }
 
-.crew-title span.bn {
-  color: var(--br-gold);
-  font-weight: 600;
+.bay-badge {
   font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  color: #f8fafc;
 }
 
-.btn-grid {
+.bay-bn {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--br-gold);
+}
+
+/* LP QUADRANTS & STEPPERS */
+.lp-controls-layout {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1fr 1fr 1.15fr;
+  gap: 7px;
+  align-items: stretch;
+}
+
+.lever-quadrant {
+  background: #070c16;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   gap: 5px;
 }
 
-.ctrl-btn {
+.quad-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: #94a3b8;
+  display: flex;
+  justify-content: space-between;
+}
+
+.quad-label kbd {
   background: #1e293b;
-  color: #f8fafc;
-  border: 1px solid #334155;
+  color: var(--br-gold);
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 9px;
+}
+
+.notch-pips {
+  display: flex;
+  gap: 2px;
+  background: #030712;
+  padding: 3px;
   border-radius: 5px;
-  padding: 6px 6px;
-  font-size: 11px;
-  font-weight: 700;
+  border: 1px solid #1e293b;
+}
+
+.notch-pips .pip {
+  flex: 1;
+  text-align: center;
+  font-size: 8.5px;
+  font-weight: 800;
+  padding: 4px 1px;
+  border-radius: 3px;
+  color: #64748b;
+  background: #0f172a;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.notch-pips .pip:hover {
+  color: #f8fafc;
+  background: #1e293b;
+}
+
+.notch-pips .pip.active {
+  background: linear-gradient(180deg, #0ea5e9 0%, #0369a1 100%);
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(14, 165, 233, 0.7);
+}
+
+.brake-quadrant .notch-pips .pip.active {
+  background: linear-gradient(180deg, #f59e0b 0%, #b45309 100%);
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.7);
+}
+
+.brake-quadrant .notch-pips .pip.emerg.active {
+  background: linear-gradient(180deg, #ef4444 0%, #991b1b 100%);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.9);
+}
+
+.lever-stepper-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.mech-step-btn {
+  background: linear-gradient(180deg, #29384e 0%, #162030 100%);
+  color: #f8fafc;
+  border: 1px solid #475569;
+  border-bottom: 3px solid #090d16;
+  border-radius: 5px;
+  padding: 6px 4px;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  transition: transform 0.08s, filter 0.12s;
+}
+
+.mech-step-btn:hover { filter: brightness(1.18); }
+.mech-step-btn:active {
+  transform: translateY(2px);
+  border-bottom-width: 1px;
+}
+
+.mech-step-btn.accent-cyan {
+  background: linear-gradient(180deg, #0284c7 0%, #075985 100%);
+  border-color: #38bdf8;
+}
+.mech-step-btn.accent-green {
+  background: linear-gradient(180deg, #059669 0%, #065f46 100%);
+  border-color: #34d399;
+}
+.mech-step-btn.accent-red {
+  background: linear-gradient(180deg, #dc2626 0%, #991b1b 100%);
+  border-color: #f87171;
+}
+
+.mech-step-btn kbd {
+  background: rgba(0, 0, 0, 0.45);
+  color: #fde047;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 9px;
+}
+
+/* TACTILE 3D HARDWARE PUSH-BUTTONS WITH LED STATUS RINGS */
+.tactile-btn-cluster {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+
+.alp-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  flex: 1;
+}
+
+.hw-push-btn {
+  position: relative;
+  border-radius: 7px;
+  padding: 5px 6px;
+  color: #ffffff;
+  font-weight: 800;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  transition: background 0.12s;
-}
-
-.ctrl-btn:hover {
-  background: #334155;
-  border-color: #64748b;
-}
-
-.ctrl-btn:active {
-  transform: translateY(1px);
-}
-
-.ctrl-btn kbd {
-  background: #090d16;
-  color: var(--br-gold);
+  justify-content: center;
+  gap: 1px;
   border: 1px solid #475569;
+  border-bottom: 4px solid #090d16;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 3px 6px rgba(0, 0, 0, 0.45);
+  transition: transform 0.08s ease, filter 0.12s ease, box-shadow 0.12s ease;
+}
+
+.hw-push-btn:hover {
+  filter: brightness(1.15);
+}
+
+.hw-push-btn:active {
+  transform: translateY(2px);
+  border-bottom-width: 2px;
+}
+
+.hw-icon { font-size: 14px; line-height: 1; }
+.hw-title { font-size: 9.5px; letter-spacing: 0.2px; }
+.hw-sub { font-size: 8.5px; color: #fde047; font-weight: 600; }
+
+.hw-push-btn kbd {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  background: rgba(5, 9, 17, 0.65);
+  color: #fde047;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 3px;
-  padding: 1px 5px;
-  font-size: 10px;
+  padding: 0 4px;
+  font-size: 8.5px;
   font-family: Consolas, monospace;
 }
 
-.ctrl-btn.horn-btn {
-  background: #7c2d12;
-  border-color: #f97316;
+/* Status LED Indicator Dot in top-left of every hardware button */
+.led-ring {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #334155;
+  border: 1px solid #0f172a;
 }
 
-.ctrl-btn.token-btn {
-  background: #065f46;
-  border-color: #10b981;
+.led-ring.led-on {
+  background: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
 }
 
-/* RIGHT SIDEBAR: LIVE MAP, CAUTION ORDERS, & RADIO FEED */
+.led-ring.led-warn {
+  background: #facc15;
+  box-shadow: 0 0 9px #facc15;
+}
+
+.led-ring.led-alert {
+  background: #ef4444;
+  box-shadow: 0 0 10px #ef4444;
+}
+
+/* Button Color Themes */
+.hw-horn { background: linear-gradient(180deg, #c2410c 0%, #7c2d12 100%); border-color: #fb923c; }
+.hw-amber { background: linear-gradient(180deg, #b45309 0%, #78350f 100%); border-color: #fbbf24; }
+.hw-emerald { background: linear-gradient(180deg, #047857 0%, #064e3b 100%); border-color: #34d399; }
+.hw-steel { background: linear-gradient(180deg, #334155 0%, #1e293b 100%); border-color: #64748b; }
+.hw-cyan { background: linear-gradient(180deg, #0369a1 0%, #0c4a6e 100%); border-color: #38bdf8; }
+.hw-gold { background: linear-gradient(180deg, #a16207 0%, #713f12 100%); border-color: #facc15; }
+.hw-crimson { background: linear-gradient(180deg, #b91c1c 0%, #7f1d1d 100%); border-color: #f87171; }
+.hw-orange { background: linear-gradient(180deg, #9a3412 0%, #431407 100%); border-color: #fb923c; }
+
+/* CENTER SVG ANALOG DIALS & CAB SIGNAL REPEATER */
+.analog-dials-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 6px;
+  flex: 1;
+}
+
+.dial-widget {
+  width: 82px;
+  height: 82px;
+}
+
+.dial-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.dial-bezel {
+  fill: #1e293b;
+  stroke: #64748b;
+  stroke-width: 3;
+}
+
+.dial-face {
+  fill: #050911;
+}
+
+.dial-arc {
+  fill: none;
+  stroke: #334155;
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.dial-needle {
+  stroke-width: 3;
+  stroke-linecap: round;
+  transform-origin: 50px 50px;
+  transition: transform 0.08s linear;
+}
+
+.speed-needle { stroke: #38bdf8; }
+.bp-needle { stroke: #22c55e; }
+.bc-needle { stroke: #ef4444; }
+
+.dial-cap { fill: #cbd5e1; }
+.dial-title {
+  fill: #94a3b8;
+  font-size: 9px;
+  font-weight: 800;
+  text-anchor: middle;
+}
+.dial-readout {
+  fill: #fde047;
+  font-size: 13px;
+  font-weight: 800;
+  font-family: Consolas, monospace;
+  text-anchor: middle;
+}
+
+/* 3-LENS CAB SIGNAL REPEATER */
+.cab-signal-pillar {
+  background: #050911;
+  border: 2px solid #334155;
+  border-radius: 8px;
+  padding: 5px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.sig-lens {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #1e293b;
+  border: 1.5px solid #475569;
+}
+
+.lens-green.active {
+  background: #22c55e;
+  box-shadow: 0 0 12px #22c55e;
+}
+
+.lens-yellow.active {
+  background: #facc15;
+  box-shadow: 0 0 12px #facc15;
+}
+
+.lens-red.active {
+  background: #ef4444;
+  box-shadow: 0 0 12px #ef4444;
+}
+
+.sig-lbl {
+  font-size: 8.5px;
+  font-weight: 800;
+  color: #cbd5e1;
+}
+
+/* RIGHT SIDEBAR */
 .right-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
   min-height: 0;
 }
 
@@ -354,14 +640,14 @@ body {
   background: var(--panel-bg);
   border: 1px solid var(--panel-border);
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 7px 9px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .sidebar-card h3 {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 800;
   color: #cbd5e1;
   display: flex;
@@ -371,7 +657,7 @@ body {
 
 .minimap-box {
   position: relative;
-  height: 175px;
+  height: 160px;
   border-radius: 6px;
   overflow: hidden;
   border: 1px solid #334155;
@@ -401,7 +687,7 @@ body {
 }
 
 .score-box {
-  background: #09111e;
+  background: #070d19;
   border: 1px solid #1e293b;
   border-radius: 5px;
   padding: 4px;
@@ -409,40 +695,38 @@ body {
 }
 
 .score-box .s-lbl {
-  font-size: 9px;
+  font-size: 8.5px;
   color: var(--text-muted);
 }
 
 .score-box .s-val {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 800;
   color: var(--br-green-light);
 }
 
-/* CAUTION ORDER CLIPBOARD */
 .caution-box {
   background: #1c1917;
   border: 1px solid #78350f;
   border-left: 3px solid var(--br-gold);
   border-radius: 5px;
-  padding: 6px 8px;
-  font-size: 11px;
+  padding: 5px 7px;
+  font-size: 10.5px;
 }
 
 .co-header {
   font-weight: 800;
   color: var(--br-gold);
-  margin-bottom: 3px;
+  margin-bottom: 2px;
 }
 
 .co-item {
   color: #fef3c7;
-  font-size: 10.5px;
-  line-height: 1.35;
+  font-size: 10px;
+  line-height: 1.3;
   margin-top: 2px;
 }
 
-/* RADIO & BILINGUAL PA LOG FEED */
 .comms-card {
   flex: 1;
   min-height: 0;
@@ -453,23 +737,23 @@ body {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
   padding-right: 3px;
 }
 
 .comms-entry {
-  background: #09111e;
+  background: #070d19;
   border: 1px solid #1e293b;
   border-radius: 5px;
-  padding: 5px 7px;
-  font-size: 11px;
+  padding: 4px 6px;
+  font-size: 10.5px;
 }
 
 .comms-badge {
   display: inline-block;
   background: var(--br-green);
   color: #fff;
-  font-size: 9px;
+  font-size: 8.5px;
   font-weight: 800;
   padding: 1px 5px;
   border-radius: 3px;
@@ -479,12 +763,12 @@ body {
 .comms-bn {
   color: var(--br-gold);
   font-weight: 600;
-  font-size: 11px;
+  font-size: 10.5px;
 }
 
 .comms-en {
   color: #e2e8f0;
-  font-size: 10.5px;
+  font-size: 10px;
 }
 
 /* FULL-SCREEN INTERACTIVE BANGLADESH RAILWAY MAP MODAL */
@@ -536,4 +820,3 @@ body {
   height: 100%;
   display: block;
 }
-

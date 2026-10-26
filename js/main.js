@@ -1,6 +1,6 @@
 // ============================================================================
 // TRACKS OF BENGAL: BANGLADESH RAILWAY CO-OP SIMULATOR
-// Module: main.js — Co-Op Controller, HUD Synchronization, & Game Loop
+// Module: main.js — Co-Op Controller, Tactile Control Stand & Live Animation Loop
 // ============================================================================
 
 window.BRSim = window.BRSim || {};
@@ -36,10 +36,10 @@ class BangladeshRailwayGameController {
   }
 
   _handleResize() {
-    if (this.mainCanvas) {
+    if (this.mainCanvas && this.mainCanvas.parentElement) {
       const rect = this.mainCanvas.parentElement.getBoundingClientRect();
-      this.mainCanvas.width = Math.max(800, rect.width);
-      this.mainCanvas.height = Math.max(460, rect.height);
+      this.mainCanvas.width = Math.max(820, rect.width);
+      this.mainCanvas.height = Math.max(420, rect.height);
     }
   }
 
@@ -87,6 +87,10 @@ class BangladeshRailwayGameController {
 
   startNewDuty(route, loco) {
     this.physics.reset(route, loco);
+    // Start in Notch 3 departing the origin platform so the train & wheels animate immediately!
+    this.physics.notch = 3;
+    this.physics.speedKmh = 28;
+
     this.renderer.setWeather(route.weatherDefault || "clear_sunset");
     this.audio.setProfile(loco.soundProfile);
 
@@ -96,8 +100,8 @@ class BangladeshRailwayGameController {
     this._updateCautionOrderUI();
     this.logComms(
       "DISPATCH / GUARD",
-      `Duty Started: ${route.trainNo} ${route.name} (${loco.code}). Release Train Brake [A] & advance Throttle [W] to depart ${route.stations[0].name}!`,
-      `ডিউটি শুরু: ${route.bengaliName} (${loco.bengaliName})। ট্রেন ব্রেক [A] রিলিজ করুন এবং থ্রটল [W] বাড়িয়ে যাত্রা শুরু করুন!`
+      `Departing ${route.stations[0].name} on ${route.trainNo} ${route.name} (${loco.code}). Use [W]/[S] for Throttle, [A]/[D] for Brakes, [SPACE] for Horn!`,
+      `ডিউটি শুরু: ${route.bengaliName} (${loco.bengaliName})। থ্রটল [W]/[S], ব্রেক [A]/[D], এবং হর্ন [SPACE] ব্যবহার করুন!`
     );
   }
 
@@ -181,6 +185,8 @@ class BangladeshRailwayGameController {
         );
       } else if (key === "v") {
         const cam = this.renderer.cycleCamera();
+        const camBtn = document.getElementById("btnCycleCamera");
+        if (camBtn) camBtn.textContent = `🎥 View: ${cam.replace(/_/g, " ")} [V]`;
         this.logComms("CAMERA", `Switched View Mode: ${cam}`, `ক্যামেরা ভিউ: ${cam}`);
       } else if (key === "m") {
         this.toggleFullMapModal();
@@ -194,7 +200,36 @@ class BangladeshRailwayGameController {
       }
     });
 
-    // Bind On-Screen Co-Op Control Deck Buttons
+    // Direct Clickable Throttle Quadrant Pips (IDLE..N8)
+    const throttlePips = document.getElementById("throttleNotchPips");
+    if (throttlePips) {
+      throttlePips.querySelectorAll(".pip").forEach((pip) => {
+        pip.addEventListener("click", () => {
+          this.audio.init();
+          const targetNotch = parseInt(pip.getAttribute("data-notch"), 10);
+          if (!isNaN(targetNotch)) {
+            this.physics.notch = targetNotch;
+          }
+        });
+      });
+    }
+
+    // Direct Clickable A9 Air Brake Quadrant Pips (OVR..EMRG)
+    const brakePips = document.getElementById("brakeNotchPips");
+    if (brakePips) {
+      brakePips.querySelectorAll(".pip").forEach((pip) => {
+        pip.addEventListener("click", () => {
+          this.audio.init();
+          const targetIdx = parseInt(pip.getAttribute("data-brake"), 10);
+          if (!isNaN(targetIdx)) {
+            const delta = targetIdx - this.physics.autoBrakeIndex;
+            this.physics.changeAutoBrake(delta);
+          }
+        });
+      });
+    }
+
+    // Bind On-Screen Co-Op Control Stand Buttons
     const bindBtn = (id, fn) => {
       const el = document.getElementById(id);
       if (el) {
@@ -209,10 +244,13 @@ class BangladeshRailwayGameController {
     bindBtn("btnNotchDown", () => this.physics.changeNotch(-1));
     bindBtn("btnBrakeApply", () => this.physics.changeAutoBrake(1));
     bindBtn("btnBrakeRelease", () => this.physics.changeAutoBrake(-1));
-    bindBtn("btnIndBrakeUp", () => this.physics.changeIndependentBrake(1));
-    bindBtn("btnIndBrakeDown", () => this.physics.changeIndependentBrake(-1));
-    bindBtn("btnReverserFwd", () => this.physics.changeReverser(1));
-    bindBtn("btnReverserRev", () => this.physics.changeReverser(-1));
+    bindBtn("btnReverserFwd", () => {
+      if (Math.abs(this.physics.speedKmh) > 1.5 || this.physics.notch > 0) {
+        this.logComms("LP CAB", "Stop train & set IDLE before toggling Reverser!", "রিভার্সার পরিবর্তনের আগে ট্রেন থামান!");
+        return;
+      }
+      this.physics.reverser = this.physics.reverser === 1 ? -1 : 1;
+    });
     bindBtn("btnSander", () => {
       this.physics.sanderActive = !this.physics.sanderActive;
     });
@@ -237,7 +275,7 @@ class BangladeshRailwayGameController {
       });
     }
 
-    // Player 2 (ALP) Buttons
+    // Player 2 (ALP) Hardware Buttons
     bindBtn("btnAlpSignal", () => {
       const res = this.physics.alpCallOutSignal();
       this.logComms("ALP -> LP", res.en, res.bn);
@@ -258,7 +296,7 @@ class BangladeshRailwayGameController {
     bindBtn("btnAlpGuard", () => {
       const msg = window.BRSim.DATA.guardMessages[0];
       this.logComms("GUARD VHF", msg.en, msg.bn);
-      this.audio.speakAnnouncement("Guard reports Brake Pipe 5.0! Line Clear to depart!", msg.bn);
+      this.audio.speakAnnouncement("Guard reports Brake Pipe 5.0! Green flag shown, line clear!", msg.bn);
     });
     bindBtn("btnAlpWipers", () => {
       this.physics.wipersOn = !this.physics.wipersOn;
@@ -268,7 +306,7 @@ class BangladeshRailwayGameController {
     bindBtn("btnCycleCamera", () => {
       const mode = this.renderer.cycleCamera();
       const camBtn = document.getElementById("btnCycleCamera");
-      if (camBtn) camBtn.textContent = `🎥 View: ${mode.replace("_", " ")} [V]`;
+      if (camBtn) camBtn.textContent = `🎥 View: ${mode.replace(/_/g, " ")} [V]`;
     });
 
     bindBtn("btnToggleMap", () => this.toggleFullMapModal());
@@ -365,7 +403,7 @@ class BangladeshRailwayGameController {
       Boolean(this.physics.nearLevelCrossing)
     );
 
-    // 4. Render 3D Viewport, Mini-Map, & Track Profile Ribbon
+    // 4. Render Studio Viewport, Mini-Map, & Track Profile Ribbon
     this.renderer.render(this.mainCanvas, this.physics, dt);
     this.mapRenderer.renderMap(this.miniMapCanvas, this.physics, false);
     this._renderTrackProfileRibbon();
@@ -375,7 +413,7 @@ class BangladeshRailwayGameController {
       this.mapRenderer.renderMap(this.fullMapCanvas, this.physics, true);
     }
 
-    // 5. Update DOM Telemetry Readouts
+    // 5. Update DOM Telemetry, Quadrant Pips, Hardware Button LEDs & SVG Dials
     this._updateDomReadouts();
 
     requestAnimationFrame((ts) => this._gameLoop(ts));
@@ -391,7 +429,7 @@ class BangladeshRailwayGameController {
     const totalKm = p.route.totalDistanceKm;
 
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = "#09111a";
+    ctx.fillStyle = "#08101c";
     ctx.fillRect(0, 0, w, h);
 
     const padX = 36;
@@ -433,12 +471,12 @@ class BangladeshRailwayGameController {
       ctx.fill();
 
       ctx.fillStyle = "#cbd5e1";
-      ctx.font = "bold 10px 'Segoe UI', sans-serif";
+      ctx.font = "bold 9.5px 'Segoe UI', sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(st.name.split(" ")[0], sx, lineY - 12);
+      ctx.fillText(st.name.split(" ")[0], sx, lineY - 11);
       ctx.fillStyle = "#64748b";
-      ctx.font = "9px monospace";
-      ctx.fillText(`${st.km.toFixed(1)}km`, sx, lineY + 19);
+      ctx.font = "8.5px monospace";
+      ctx.fillText(`${st.km.toFixed(1)}km`, sx, lineY + 17);
     });
 
     // Live Train Marker on Profile
@@ -460,11 +498,72 @@ class BangladeshRailwayGameController {
     setTxt("hudNotchVal", p.notch === 0 ? "IDLE (N0)" : `NOTCH ${p.notch}`);
     setTxt("hudReverserVal", p.reverser === 1 ? "FORWARD" : p.reverser === -1 ? "REVERSE" : "NEUTRAL");
     setTxt("hudAutoBrakeVal", p.autoBrakeLabels[p.autoBrakeIndex]);
-    setTxt("hudIndBrakeVal", `${(p.indBrakeRatio * 3.5).toFixed(1)} kg/cm²`);
+    setTxt("hudIndBrakeVal", `Loco Brake: ${(p.indBrakeRatio * 3.5).toFixed(1)} kg/cm²`);
     setTxt("hudBpVal", `BP: ${p.brakePipePressure.toFixed(1)} | BC: ${p.brakeCylinderPressure.toFixed(1)} kg/cm²`);
     setTxt("hudRpmAmpsVal", `${Math.round(p.rpm)} RPM | ${Math.round(p.amps)} A | ${Math.round(p.waterTempC)}°C`);
+    setTxt("btnReverserLabel", p.reverser === 1 ? "REV: FWD" : p.reverser === -1 ? "REV: BACK" : "REV: NEUT");
 
-    // Next Station & Token Status
+    // 1. Update Throttle & Brake Quadrant Pips
+    const throttlePips = document.getElementById("throttleNotchPips");
+    if (throttlePips) {
+      throttlePips.querySelectorAll(".pip").forEach((pip) => {
+        const n = parseInt(pip.getAttribute("data-notch"), 10);
+        pip.classList.toggle("active", n === p.notch);
+      });
+    }
+    const brakePips = document.getElementById("brakeNotchPips");
+    if (brakePips) {
+      brakePips.querySelectorAll(".pip").forEach((pip) => {
+        const b = parseInt(pip.getAttribute("data-brake"), 10);
+        pip.classList.toggle("active", b === p.autoBrakeIndex);
+      });
+    }
+
+    // 2. Update SVG Analog Dial Needles
+    const speedNeedle = document.getElementById("svgNeedleSpeed");
+    if (speedNeedle) {
+      const deg = (Math.min(120, Math.max(0, p.speedKmh)) / 120) * 260;
+      speedNeedle.style.transform = `rotate(${deg}deg)`;
+    }
+    setTxt("svgTextSpeed", `${Math.round(p.speedKmh)}`);
+
+    const bpNeedle = document.getElementById("svgNeedleBp");
+    if (bpNeedle) {
+      const deg = ((Math.min(6, Math.max(0, p.brakePipePressure)) / 6) * 260) - 130;
+      bpNeedle.style.transform = `rotate(${deg}deg)`;
+    }
+    const bcNeedle = document.getElementById("svgNeedleBc");
+    if (bcNeedle) {
+      const deg = (Math.min(5, Math.max(0, p.brakeCylinderPressure)) / 5) * 240;
+      bcNeedle.style.transform = `rotate(${deg}deg)`;
+    }
+    setTxt("svgTextBp", `${p.brakePipePressure.toFixed(1)}`);
+
+    // 3. Update 3-Lens Cab Signal Repeater
+    const asp = p.activeSignalAspect;
+    const lg = document.getElementById("lensGreen");
+    const ly = document.getElementById("lensYellow");
+    const lr = document.getElementById("lensRed");
+    if (lg) lg.classList.toggle("active", asp === "GREEN");
+    if (ly) ly.classList.toggle("active", asp === "YELLOW" || asp === "DOUBLE_YELLOW");
+    if (lr) lr.classList.toggle("active", asp === "RED");
+    setTxt("cabSignalText", asp.replace("_", " "));
+
+    // 4. Update Tactile Hardware Button LED Rings
+    const setLed = (id, stateClass) => {
+      const el = document.getElementById(id);
+      if (el) el.className = "led-ring " + (stateClass || "");
+    };
+    setLed("ledHorn", p.hornActive ? "led-warn" : "");
+    setLed("ledSander", p.sanderActive ? "led-on" : "");
+    setLed("ledLpAck", p.alpCalledSignal ? "led-warn" : "led-on");
+    setLed("ledAlpSignal", p.alpCalledSignal ? "led-on" : "");
+    setLed("ledAlpToken", p.nearTokenStation && !p.tokenExchangeDoneMap[p.nearTokenStation.id] ? "led-warn" : "");
+    setLed("ledAlpAcp", p.alarmChainPulled ? "led-alert" : "");
+    setLed("ledAlpEngine", p.groundRelayTripped || p.waterTempC > 88 ? "led-alert" : p.radiatorLouversOpen ? "led-on" : "");
+    setLed("ledAlpWipers", p.wipersOn ? "led-on" : "");
+
+    // 5. Next Station & Action Banner
     const nextInfo = p.getNextStationInfo();
     setTxt(
       "hudNextStationVal",
@@ -488,7 +587,7 @@ class BangladeshRailwayGameController {
       } else {
         modeBadge.textContent = nextInfo.station.tokenExchange
           ? `🟡 Next: Token Snatch [O] at 15–30 km/h`
-          : `🛑 Next: Platform Stop Required`;
+          : `🛑 Next: Platform Stop at ${nextInfo.station.name}`;
         modeBadge.className = "action-badge badge-info";
       }
     }
@@ -505,4 +604,3 @@ window.addEventListener("DOMContentLoaded", () => {
   window.BRSim.App = new BangladeshRailwayGameController();
   window.BRSim.App.init();
 });
-

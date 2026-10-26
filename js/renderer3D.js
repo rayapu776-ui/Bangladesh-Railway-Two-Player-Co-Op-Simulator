@@ -1,32 +1,67 @@
 // ============================================================================
 // TRACKS OF BENGAL: BANGLADESH RAILWAY CO-OP SIMULATOR
-// Module: renderer3D.js — 3D Perspective World, Bridges, Local Life & Cab View
+// Module: renderer3D.js — Studio-Grade Animated Train, Parallax Bengal World & 3D Cab
 // ============================================================================
 
 window.BRSim = window.BRSim || {};
 
-class BangladeshRailway3DRenderer {
+class BangladeshRailwayStudioRenderer {
   constructor() {
-    this.cameraMode = "CAB_COOP"; // "CAB_COOP", "ALP_TOKEN_WINDOW", "EXTERIOR_CHASE"
-    this.weatherMode = "clear_sunset"; // "clear_sunset", "clear_day", "monsoon_rain", "winter_fog", "night_express"
+    // Camera Modes:
+    // "STUDIO_DUAL" (Animated Exterior Train + 3D Driver Windshield PiP)
+    // "EXTERIOR_CINEMATIC" (Full Widescreen Animated Train & Bangladeshi Scenery)
+    // "CAB_FIRST_PERSON" (Full First-Person 3D Driver Cab Interior)
+    // "ALP_TOKEN_WINDOW" (Close-up ALP Doorway Token Snatch & Coach Inspection)
+    this.cameraMode = "STUDIO_DUAL";
+    this.weatherMode = "clear_sunset";
+
+    this.wheelAngle = 0;
     this.wiperAngle = 0;
     this.wiperDir = 1;
     this.fanAngle = 0;
-    this.rainDrops = [];
-    this.smokeParticles = [];
+    this.timeSec = 0;
 
-    for (let i = 0; i < 90; i++) {
+    // Particle Systems
+    this.exhaustParticles = [];
+    this.sparkParticles = [];
+    this.sandParticles = [];
+    this.hornWaveRings = [];
+    this.rainDrops = [];
+    this.birds = [];
+    this.clouds = [];
+
+    this._initEnvironmentParticles();
+  }
+
+  _initEnvironmentParticles() {
+    for (let i = 0; i < 110; i++) {
       this.rainDrops.push({
         x: Math.random(),
         y: Math.random(),
-        len: 12 + Math.random() * 18,
-        speed: 0.7 + Math.random() * 0.6
+        len: 14 + Math.random() * 20,
+        speed: 0.8 + Math.random() * 0.6
+      });
+    }
+    for (let i = 0; i < 8; i++) {
+      this.clouds.push({
+        x: i * 0.14,
+        y: 0.06 + (i % 3) * 0.06,
+        scale: 0.7 + (i % 4) * 0.25,
+        speed: 0.004 + (i % 3) * 0.002
+      });
+    }
+    // Flock of white Bangladeshi Egrets (Bok)
+    for (let i = 0; i < 9; i++) {
+      this.birds.push({
+        x: 0.2 + i * 0.025,
+        y: 0.14 + Math.abs(i - 4) * 0.015,
+        wingPhase: i * 0.6
       });
     }
   }
 
   cycleCamera() {
-    const modes = ["CAB_COOP", "ALP_TOKEN_WINDOW", "EXTERIOR_CHASE"];
+    const modes = ["STUDIO_DUAL", "EXTERIOR_CINEMATIC", "CAB_FIRST_PERSON", "ALP_TOKEN_WINDOW"];
     const idx = (modes.indexOf(this.cameraMode) + 1) % modes.length;
     this.cameraMode = modes[idx];
     return this.cameraMode;
@@ -42,1017 +77,1592 @@ class BangladeshRailway3DRenderer {
     const w = canvas.width;
     const h = canvas.height;
 
-    this.fanAngle = (this.fanAngle + dt * 11) % (Math.PI * 2);
+    this.timeSec += dt;
+    const speedMps = (physics.speedKmh || 0) / 3.6;
+
+    // Advance wheel rotation angle (exact kinematics: v = omega * r, wheel radius = 0.52m)
+    this.wheelAngle = (this.wheelAngle + (speedMps / 0.52) * dt) % (Math.PI * 2);
+    this.fanAngle = (this.fanAngle + dt * 12) % (Math.PI * 2);
+
     if (physics.wipersOn) {
-      this.wiperAngle += this.wiperDir * dt * 2.8;
-      if (this.wiperAngle > 1.05) {
-        this.wiperAngle = 1.05;
+      this.wiperAngle += this.wiperDir * dt * 2.9;
+      if (this.wiperAngle > 1.0) {
+        this.wiperAngle = 1.0;
         this.wiperDir = -1;
-      } else if (this.wiperAngle < -1.05) {
-        this.wiperAngle = -1.05;
+      } else if (this.wiperAngle < -1.0) {
+        this.wiperAngle = -1.0;
         this.wiperDir = 1;
       }
     } else {
-      this.wiperAngle *= 0.92;
+      this.wiperAngle *= 0.9;
     }
 
-    // Cab vibration / sway over bolted fishplate track joints
-    const speedRatio = Math.min(1.5, Math.abs(physics.speedKmh) / 90);
-    const swayX = Math.sin(Date.now() * 0.009) * 3.5 * speedRatio + (physics.wheelSlip ? (Math.random() - 0.5) * 6 : 0);
-    const swayY = Math.abs(Math.cos(Date.now() * 0.018)) * 2.5 * speedRatio;
+    const speedRatio = Math.min(1.5, Math.abs(physics.speedKmh) / 85);
+    const swayX = Math.sin(this.timeSec * 8.5) * 2.5 * speedRatio + (physics.wheelSlip ? (Math.random() - 0.5) * 5 : 0);
+    const swayY = Math.abs(Math.cos(this.timeSec * 14.0)) * 2.0 * speedRatio;
 
     ctx.save();
     ctx.clearRect(0, 0, w, h);
 
-    if (this.cameraMode === "EXTERIOR_CHASE") {
-      this._renderExteriorChaseView(ctx, w, h, physics, dt);
+    if (this.cameraMode === "CAB_FIRST_PERSON") {
+      this._render3DWorldOutWindow(ctx, w, h, physics, dt, swayX, swayY);
+      this._renderCabInteriorOverlay(ctx, w, h, physics, dt, swayX, swayY);
     } else if (this.cameraMode === "ALP_TOKEN_WINDOW") {
       this._renderAlpWindowView(ctx, w, h, physics, dt, swayX, swayY);
     } else {
-      // Default: Full 2-Player Co-Op Cab Interior + 3D World View
-      this._render3DWorldOutWindow(ctx, w, h, physics, dt, swayX, swayY);
-      this._renderCabInteriorOverlay(ctx, w, h, physics, dt, swayX, swayY);
+      // STUDIO_DUAL or EXTERIOR_CINEMATIC:
+      // Render the rich multi-layer parallax Bangladeshi landscape + High-Detail Animated Train!
+      this._renderAnimatedParallaxScene(ctx, w, h, physics, dt);
+
+      // In STUDIO_DUAL mode, also render a live 3D Driver Forward Track View PiP Monitor in bottom-right!
+      if (this.cameraMode === "STUDIO_DUAL") {
+        this._renderForwardCabPiP(ctx, w, h, physics, dt, swayX, swayY);
+      }
     }
 
     ctx.restore();
   }
 
-  // --------------------------------------------------------------------------
-  // 1. 3D PERSPECTIVE WORLD RENDERER (TRACKS, BRIDGES, STATIONS, LOCAL LIFE)
-  // --------------------------------------------------------------------------
-  _render3DWorldOutWindow(ctx, w, h, physics, dt, swayX, swayY) {
-    const horizonY = h * 0.44 + swayY;
-    const vanishX = w * 0.5 + swayX * 1.5;
+  // ==========================================================================
+  // PART A: MULTI-LAYER PARALLAX BANGLADESHI WORLD & ANIMATED TRAIN SHOWCASE
+  // ==========================================================================
+  _renderAnimatedParallaxScene(ctx, w, h, physics, dt) {
+    const dKm = physics.distanceKm;
+    const speedMps = physics.speedKmh / 3.6;
+    const trackSurfaceY = h * 0.77;
+    const horizonY = h * 0.52;
 
-    // 1. Sky & Atmosphere Shader based on Bangladeshi Weather
-    this._drawSkyAndSun(ctx, w, h, horizonY);
+    // 1. SKY, SUN/MOON, VOLUMETRIC CLOUDS & FLYING WHITE EGRETS (BOK)
+    this._drawSkyAndClouds(ctx, w, h, horizonY, dt, speedMps);
 
-    // 2. Distant Horizon Silhouettes (Srimangal Tea Hills, Dhaka Skyline, or Brick Kilns)
-    this._drawDistantHorizon(ctx, w, horizonY, physics);
+    // 2. FAR HORIZON LAYER (Parallax 0.08x): Tea Hills, Dhaka/Ctg Skyline, Brick Kilns, Mosques
+    this._drawFarHorizonParallax(ctx, w, horizonY, dKm, physics);
 
-    // 3. Ground Plane (Emerald Paddy Fields, Flooded Haor Water, or Mustard Fields)
-    this._drawGroundBiome(ctx, w, h, horizonY, physics);
+    // 3. MIDGROUND VILLAGE & RIVER LAYER (Parallax 0.30x): Paddy Fields, Mustard, Haor Boats, Palms
+    this._drawMidgroundBengalLife(ctx, w, h, horizonY, trackSurfaceY, dKm, physics);
 
-    // 4. Perspective 3D Railway Embankment, Multi-Gauge Sleepers & Rails (MG/BG/DG)
-    this._draw3DTrackBed(ctx, w, h, vanishX, horizonY, physics);
+    // 4. BACKGROUND STATION ARCHITECTURES & LEVEL CROSSINGS (World-Synced 1.0x)
+    this._drawWorldStationsAndCrossingsBehindTrain(ctx, w, h, trackSurfaceY, dKm, physics);
 
-    // 5. Dynamic 3D World Objects (Stations, Bridges, Level Crossings, Signals, Trees, People)
-    this._draw3DTracksideEntities(ctx, w, h, vanishX, horizonY, physics);
+    // 5. DETAILED TRACK EMBANKMENT, BALLAST, SLEEPERS & MULTI-GAUGE RAILS
+    this._drawSideTrackBed(ctx, w, h, trackSurfaceY, dKm, physics);
 
-    // 6. Headlight Volumetric Cone (Night / Fog / Monsoon)
-    if (physics.headlightMode === "BRIGHT" && (this.weatherMode === "night_express" || this.weatherMode === "winter_fog" || this.weatherMode === "monsoon_rain")) {
-      const beamGrad = ctx.createRadialGradient(vanishX, horizonY + 35, 10, vanishX, h * 0.85, w * 0.48);
-      beamGrad.addColorStop(0, "rgba(254, 240, 138, 0.32)");
-      beamGrad.addColorStop(0.6, "rgba(254, 240, 138, 0.10)");
-      beamGrad.addColorStop(1, "rgba(254, 240, 138, 0)");
-      ctx.fillStyle = beamGrad;
-      ctx.beginPath();
-      ctx.moveTo(vanishX - 30, horizonY + 10);
-      ctx.lineTo(vanishX + 30, horizonY + 10);
-      ctx.lineTo(w * 0.92, h);
-      ctx.lineTo(w * 0.08, h);
-      ctx.closePath();
-      ctx.fill();
-    }
+    // 6. STUDIO-GRADE ANIMATED LOCOMOTIVE & PASSENGER COACH CONSIST
+    this._drawProfessionalAnimatedTrain(ctx, w, h, trackSurfaceY, physics, dt);
 
-    // 7. Weather Particles (Monsoon Rain Deluge or Winter River Fog Kuasha)
+    // 7. FOREGROUND BRIDGE TRUSSES (Padma Lower Deck, Hardinge Crimson Truss, Bhairab, Jamuna)
+    this._drawForegroundBridgeAndPlatformElements(ctx, w, h, trackSurfaceY, dKm, physics);
+
+    // 8. WEATHER OVERLAY (Monsoon Rain Deluge, Lightning, or Winter Kuasha Fog)
     this._drawWeatherEffects(ctx, w, h, horizonY, physics, dt);
   }
 
-  _drawSkyAndSun(ctx, w, h, horizonY) {
+  _drawSkyAndClouds(ctx, w, h, horizonY, dt, speedMps) {
     const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
     if (this.weatherMode === "clear_sunset") {
-      skyGrad.addColorStop(0, "#1e1b4b");
-      skyGrad.addColorStop(0.45, "#7c2d12");
-      skyGrad.addColorStop(0.8, "#ea580c");
+      skyGrad.addColorStop(0, "#0f172a");
+      skyGrad.addColorStop(0.32, "#4c1d95");
+      skyGrad.addColorStop(0.65, "#c2410c");
+      skyGrad.addColorStop(0.88, "#f97316");
       skyGrad.addColorStop(1, "#fde047");
     } else if (this.weatherMode === "monsoon_rain") {
-      skyGrad.addColorStop(0, "#0f172a");
+      skyGrad.addColorStop(0, "#090d16");
       skyGrad.addColorStop(0.5, "#1e293b");
       skyGrad.addColorStop(1, "#475569");
     } else if (this.weatherMode === "winter_fog") {
-      skyGrad.addColorStop(0, "#64748b");
+      skyGrad.addColorStop(0, "#475569");
       skyGrad.addColorStop(0.6, "#94a3b8");
-      skyGrad.addColorStop(1, "#cbd5e1");
+      skyGrad.addColorStop(1, "#e2e8f0");
     } else if (this.weatherMode === "night_express") {
       skyGrad.addColorStop(0, "#020617");
-      skyGrad.addColorStop(0.6, "#090d16");
-      skyGrad.addColorStop(1, "#1e293b");
+      skyGrad.addColorStop(0.55, "#0f172a");
+      skyGrad.addColorStop(1, "#1e1b4b");
     } else {
-      // Clear Bengal Day
-      skyGrad.addColorStop(0, "#0284c7");
-      skyGrad.addColorStop(0.65, "#38bdf8");
+      skyGrad.addColorStop(0, "#0369a1");
+      skyGrad.addColorStop(0.6, "#0ea5e9");
       skyGrad.addColorStop(1, "#bae6fd");
     }
     ctx.fillStyle = skyGrad;
-    ctx.fillRect(0, 0, w, horizonY + 2);
+    ctx.fillRect(0, 0, w, horizonY + 10);
 
-    // Sun or Moon
-    if (this.weatherMode === "clear_sunset") {
-      const sunGrad = ctx.createRadialGradient(w * 0.58, horizonY - 38, 8, w * 0.58, horizonY - 38, 75);
-      sunGrad.addColorStop(0, "#fffbeb");
-      sunGrad.addColorStop(0.3, "#fb923c");
-      sunGrad.addColorStop(1, "rgba(234, 88, 12, 0)");
-      ctx.fillStyle = sunGrad;
+    // Glowing Sun or Night Stars + Crescent Moon
+    if (this.weatherMode === "clear_sunset" || this.weatherMode === "clear_day") {
+      const sunX = w * 0.72;
+      const sunY = this.weatherMode === "clear_sunset" ? horizonY - 48 : h * 0.14;
+      const sunGlow = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 110);
+      sunGlow.addColorStop(0, "#ffffff");
+      sunGlow.addColorStop(0.25, "#fde047");
+      sunGlow.addColorStop(0.6, "rgba(251, 146, 60, 0.35)");
+      sunGlow.addColorStop(1, "rgba(251, 146, 60, 0)");
+      ctx.fillStyle = sunGlow;
       ctx.beginPath();
-      ctx.arc(w * 0.58, horizonY - 38, 75, 0, Math.PI * 2);
+      ctx.arc(sunX, sunY, 110, 0, Math.PI * 2);
       ctx.fill();
+    } else if (this.weatherMode === "night_express") {
+      ctx.fillStyle = "#fef9c3";
+      for (let s = 0; s < 45; s++) {
+        const sx = ((s * 197) % w);
+        const sy = ((s * 89) % (horizonY * 0.8));
+        const twinkle = 0.4 + 0.6 * Math.abs(Math.sin(this.timeSec * 2 + s));
+        ctx.globalAlpha = twinkle;
+        ctx.fillRect(sx, sy, 2, 2);
+      }
+      ctx.globalAlpha = 1.0;
+      // Crescent Moon
+      ctx.fillStyle = "#fef08a";
+      ctx.beginPath();
+      ctx.arc(w * 0.82, h * 0.12, 20, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#04091a";
+      ctx.beginPath();
+      ctx.arc(w * 0.82 - 7, h * 0.12 - 4, 18, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Animated Clouds
+    ctx.save();
+    this.clouds.forEach((c) => {
+      c.x -= (c.speed + speedMps * 0.00018) * dt;
+      if (c.x < -0.2) c.x = 1.15;
+      const cx = c.x * w;
+      const cy = c.y * h;
+      const r = 28 * c.scale;
+
+      ctx.fillStyle =
+        this.weatherMode === "clear_sunset"
+          ? "rgba(253, 186, 116, 0.28)"
+          : this.weatherMode === "monsoon_rain"
+          ? "rgba(51, 65, 85, 0.65)"
+          : "rgba(255, 255, 255, 0.35)";
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.arc(cx + r * 0.8, cy - r * 0.2, r * 0.85, 0, Math.PI * 2);
+      ctx.arc(cx + r * 1.6, cy + r * 0.05, r * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.restore();
+
+    // Animated Flock of White Bangladeshi Egrets (Bok) flying across the sky
+    if (this.weatherMode !== "night_express") {
+      ctx.save();
+      ctx.strokeStyle = this.weatherMode === "clear_sunset" ? "#fef3c7" : "#f8fafc";
+      ctx.lineWidth = 1.8;
+      this.birds.forEach((b) => {
+        b.x -= (0.015 + speedMps * 0.0003) * dt;
+        if (b.x < -0.05) b.x = 1.08;
+        const bx = b.x * w;
+        const by = b.y * h + Math.sin(this.timeSec * 3 + b.wingPhase) * 3;
+        const wingY = Math.sin(this.timeSec * 9 + b.wingPhase) * 6;
+
+        ctx.beginPath();
+        ctx.moveTo(bx - 7, by - wingY);
+        ctx.quadraticCurveTo(bx - 3, by - 3, bx, by);
+        ctx.quadraticCurveTo(bx + 3, by - 3, bx + 7, by - wingY);
+        ctx.stroke();
+      });
+      ctx.restore();
     }
   }
 
-  _drawDistantHorizon(ctx, w, horizonY, physics) {
-    const routeId = physics.route.id;
+  _drawFarHorizonParallax(ctx, w, horizonY, dKm, physics) {
     ctx.save();
+    const scrollPx = (dKm * 180) % w;
+    const isNight = this.weatherMode === "night_express";
+    const routeId = physics.route.id;
 
-    if (routeId === "sylhet_parabat_hills" || routeId === "hardinge_panchagarh") {
-      // Rolling Srimangal Tea Hills / Himalayan Foothills
-      ctx.fillStyle = this.weatherMode === "night_express" ? "#0f172a" : "#064e3b";
+    // 1. Distant Mountain / Tea Hill Range (Sylhet & Panchagarh) or Distant Tree Silhouette
+    ctx.fillStyle = isNight ? "#09101d" : this.weatherMode === "clear_sunset" ? "#2e1065" : "#064e3b";
+    ctx.beginPath();
+    ctx.moveTo(0, horizonY);
+    for (let x = 0; x <= w; x += 20) {
+      const worldX = x + dKm * 140;
+      const hillAmp = routeId === "sylhet_parabat_hills" || routeId === "hardinge_panchagarh" ? 42 : 16;
+      const hy =
+        horizonY -
+        12 -
+        Math.abs(Math.sin(worldX * 0.005)) * hillAmp -
+        Math.abs(Math.cos(worldX * 0.013)) * (hillAmp * 0.5);
+      ctx.lineTo(x, hy);
+    }
+    ctx.lineTo(w, horizonY);
+    ctx.closePath();
+    ctx.fill();
+
+    // 2. Repeating Far Landmarks: Brick Kilns (Itt-Bhatta), Village Mosque Domes & Minarets, Power Pylons
+    for (let tile = -1; tile <= 2; tile++) {
+      const baseX = tile * 550 - (scrollPx % 550);
+
+      // A. Traditional Bangladeshi Red Brick Kiln (Itt-Bhatta) with tall chimney & curling smoke
+      const kilnX = baseX + 120;
+      ctx.fillStyle = isNight ? "#1e1b4b" : "#7f1d1d";
+      ctx.fillRect(kilnX - 24, horizonY - 14, 48, 14);
       ctx.beginPath();
-      ctx.moveTo(0, horizonY);
-      for (let x = 0; x <= w; x += 40) {
-        const hillH = Math.sin(x * 0.008 + physics.distanceKm * 0.5) * 24 + Math.cos(x * 0.015) * 14 + 26;
-        ctx.lineTo(x, horizonY - hillH);
-      }
-      ctx.lineTo(w, horizonY);
+      ctx.moveTo(kilnX - 7, horizonY - 14);
+      ctx.lineTo(kilnX - 3, horizonY - 72);
+      ctx.lineTo(kilnX + 3, horizonY - 72);
+      ctx.lineTo(kilnX + 7, horizonY - 14);
       ctx.closePath();
       ctx.fill();
-    } else {
-      // Distant Bangladeshi Village Tree Line & Brick Kilns (Itt-Bhatta)
-      ctx.fillStyle = this.weatherMode === "night_express" ? "#09121c" : "#113025";
-      ctx.beginPath();
-      ctx.moveTo(0, horizonY);
-      for (let x = 0; x <= w; x += 25) {
-        const treeH = 10 + Math.abs(Math.sin(x * 0.04)) * 12;
-        ctx.lineTo(x, horizonY - treeH);
-      }
-      ctx.lineTo(w, horizonY);
-      ctx.closePath();
-      ctx.fill();
 
-      // Draw 2 Iconic Brick Kiln Chimneys (Itt-Bhatta) belching white smoke on the horizon
-      [w * 0.22, w * 0.78].forEach((kx, i) => {
-        ctx.fillStyle = "#7f1d1d";
+      // Kiln smoke puffs
+      ctx.fillStyle = isNight ? "rgba(148, 163, 184, 0.18)" : "rgba(241, 245, 249, 0.42)";
+      for (let p = 1; p <= 5; p++) {
+        const puffX = kilnX - p * 11 - Math.sin(this.timeSec * 2 + p) * 4;
+        const puffY = horizonY - 72 - p * 8;
         ctx.beginPath();
-        ctx.moveTo(kx - 7, horizonY);
-        ctx.lineTo(kx - 3, horizonY - 46);
-        ctx.lineTo(kx + 3, horizonY - 46);
-        ctx.lineTo(kx + 7, horizonY);
+        ctx.arc(puffX, puffY, 4 + p * 2.6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // B. Village Mosque Silhouette with Three Domes & Twin Minarets
+      const mosqX = baseX + 340;
+      ctx.fillStyle = isNight ? "#0f172a" : "#115e59";
+      ctx.fillRect(mosqX - 28, horizonY - 22, 56, 22);
+      // Central & side domes
+      ctx.beginPath();
+      ctx.arc(mosqX, horizonY - 22, 13, Math.PI, 0);
+      ctx.arc(mosqX - 18, horizonY - 22, 8, Math.PI, 0);
+      ctx.arc(mosqX + 18, horizonY - 22, 8, Math.PI, 0);
+      ctx.fill();
+      // Minarets
+      ctx.fillRect(mosqX - 33, horizonY - 46, 5, 46);
+      ctx.fillRect(mosqX + 28, horizonY - 46, 5, 46);
+
+      // C. High-Voltage Lattice Transmission Tower
+      const pylonX = baseX + 470;
+      ctx.strokeStyle = isNight ? "rgba(71, 85, 105, 0.4)" : "rgba(51, 65, 85, 0.55)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(pylonX - 10, horizonY);
+      ctx.lineTo(pylonX, horizonY - 58);
+      ctx.lineTo(pylonX + 10, horizonY);
+      ctx.moveTo(pylonX - 14, horizonY - 42);
+      ctx.lineTo(pylonX + 14, horizonY - 42);
+      ctx.moveTo(pylonX - 11, horizonY - 26);
+      ctx.lineTo(pylonX + 11, horizonY - 26);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  _drawMidgroundBengalLife(ctx, w, h, horizonY, trackSurfaceY, dKm, physics) {
+    ctx.save();
+    const isNight = this.weatherMode === "night_express";
+    const routeId = physics.route.id;
+    const isRiverOrHaor = routeId === "haor_mohanganj" || Boolean(physics.onBridge);
+
+    // 1. Midground Terrain Base (Emerald Rice Paddies, Mustard Fields, or River/Haor Water)
+    const midGrad = ctx.createLinearGradient(0, horizonY, 0, trackSurfaceY);
+    if (isRiverOrHaor) {
+      midGrad.addColorStop(0, isNight ? "#082f49" : "#0284c7");
+      midGrad.addColorStop(0.5, isNight ? "#0c4a6e" : "#0369a1");
+      midGrad.addColorStop(1, isNight ? "#041e30" : "#075985");
+    } else {
+      midGrad.addColorStop(0, isNight ? "#052e16" : "#15803d");
+      midGrad.addColorStop(0.45, isNight ? "#064e3b" : "#16a34a");
+      midGrad.addColorStop(1, isNight ? "#022c22" : "#14532d");
+    }
+    ctx.fillStyle = midGrad;
+    ctx.fillRect(0, horizonY, w, trackSurfaceY - horizonY);
+
+    const midScroll = (dKm * 580) % 700;
+
+    for (let tile = -1; tile <= 2; tile++) {
+      const bx = tile * 700 - midScroll;
+
+      if (isRiverOrHaor) {
+        // Shimmering River Waves
+        ctx.strokeStyle = isNight ? "rgba(56, 189, 248, 0.2)" : "rgba(224, 242, 254, 0.45)";
+        ctx.lineWidth = 1.5;
+        for (let wy = horizonY + 14; wy < trackSurfaceY - 12; wy += 16) {
+          ctx.beginPath();
+          ctx.moveTo(bx + (wy % 40), wy);
+          ctx.lineTo(bx + (wy % 40) + 55, wy);
+          ctx.stroke();
+        }
+
+        // Traditional Bangladeshi Wooden Country Boat (Nouka) with Colorful Sail
+        const boatX = bx + 220 + Math.sin(this.timeSec * 1.5 + tile) * 10;
+        const boatY = horizonY + 52;
+        ctx.fillStyle = "#451a03";
+        ctx.beginPath();
+        ctx.moveTo(boatX - 38, boatY);
+        ctx.quadraticCurveTo(boatX, boatY + 14, boatX + 38, boatY);
+        ctx.lineTo(boatX + 28, boatY - 3);
+        ctx.lineTo(boatX - 28, boatY - 3);
         ctx.closePath();
         ctx.fill();
 
-        // Smoke plume
-        ctx.fillStyle = "rgba(226, 232, 240, 0.35)";
-        for (let s = 1; s <= 4; s++) {
-          const sx = kx + s * 9 + Math.sin(Date.now() * 0.002 + s + i) * 4;
-          const sy = horizonY - 46 - s * 7;
-          ctx.beginPath();
-          ctx.arc(sx, sy, 4 + s * 2.5, 0, Math.PI * 2);
-          ctx.fill();
+        // Bamboo Cabin (Chhoi) & Red/Orange Sail
+        ctx.fillStyle = "#a16207";
+        ctx.beginPath();
+        ctx.arc(boatX + 4, boatY - 3, 14, Math.PI, 0);
+        ctx.fill();
+        ctx.fillStyle = "#ea580c";
+        ctx.beginPath();
+        ctx.moveTo(boatX - 8, boatY - 6);
+        ctx.lineTo(boatX - 8, boatY - 42);
+        ctx.lineTo(boatX - 30, boatY - 12);
+        ctx.closePath();
+        ctx.fill();
+
+        // Double-Deck Bangladeshi River Launch (Sadarghat/Chandpur Steamer) in distance
+        const launchX = bx + 540;
+        const launchY = horizonY + 26;
+        ctx.fillStyle = "#f8fafc";
+        ctx.fillRect(launchX - 42, launchY - 18, 84, 18);
+        ctx.fillStyle = "#0284c7";
+        ctx.fillRect(launchX - 44, launchY - 6, 88, 6);
+        ctx.fillStyle = "#fef08a";
+        for (let lw = -34; lw <= 30; lw += 10) {
+          ctx.fillRect(launchX + lw, launchY - 14, 6, 4);
         }
-      });
+      } else {
+        // Yellow Mustard Field Strip (Sorisha Khet) & Paddy Dykes (Ail)
+        ctx.fillStyle = isNight ? "rgba(161, 98, 7, 0.35)" : "#eab308";
+        ctx.fillRect(bx + 40, horizonY + 22, 230, 26);
+
+        // Rural Bangladeshi Corrugated Tin-Roof Homestead (Tiner Ghar) under Coconut & Banana Trees
+        const houseX = bx + 330;
+        const houseY = horizonY + 46;
+        ctx.fillStyle = isNight ? "#1e293b" : "#9a3412"; // Mud/brick plinth
+        ctx.fillRect(houseX - 26, houseY + 12, 52, 8);
+        ctx.fillStyle = isNight ? "#334155" : "#cbd5e1"; // Corrugated tin walls
+        ctx.fillRect(houseX - 24, houseY - 8, 48, 20);
+        ctx.fillStyle = isNight ? "#475569" : "#dc2626"; // Pitched tin roof
+        ctx.beginPath();
+        ctx.moveTo(houseX - 30, houseY - 8);
+        ctx.lineTo(houseX, houseY - 22);
+        ctx.lineTo(houseX + 30, houseY - 8);
+        ctx.closePath();
+        ctx.fill();
+        if (isNight) {
+          // Warm glowing lantern window
+          ctx.fillStyle = "#fde047";
+          ctx.fillRect(houseX - 6, houseY - 3, 10, 8);
+        }
+
+        // Detailed Coconut Palm & Banana Trees
+        this._drawDetailedPalmTree(ctx, bx + 160, horizonY + 58, 0.9, isNight);
+        this._drawDetailedPalmTree(ctx, bx + 385, horizonY + 54, 1.05, isNight);
+        this._drawDetailedPalmTree(ctx, bx + 610, horizonY + 62, 0.85, isNight);
+
+        // Srimangal Tea Garden Terraces if on Sylhet route
+        if (routeId === "sylhet_parabat_hills") {
+          ctx.fillStyle = isNight ? "#064e3b" : "#15803d";
+          for (let bush = 0; bush < 8; bush++) {
+            ctx.beginPath();
+            ctx.arc(bx + 440 + bush * 24, horizonY + 48, 14, Math.PI, 0);
+            ctx.fill();
+          }
+        }
+      }
+    }
+
+    ctx.restore();
+  }
+
+  _drawDetailedPalmTree(ctx, x, baseY, scale, isNight) {
+    ctx.save();
+    const windSway = Math.sin(this.timeSec * 2.5 + x * 0.02) * 5 * scale;
+    const topX = x + 8 * scale + windSway;
+    const topY = baseY - 56 * scale;
+
+    // Curved Palm Trunk
+    ctx.strokeStyle = isNight ? "#1e1b18" : "#573016";
+    ctx.lineWidth = 5 * scale;
+    ctx.beginPath();
+    ctx.moveTo(x, baseY);
+    ctx.quadraticCurveTo(x + 4 * scale, baseY - 28 * scale, topX, topY);
+    ctx.stroke();
+
+    // 6 Drooping Fronds
+    ctx.strokeStyle = isNight ? "#064e3b" : "#15803d";
+    ctx.lineWidth = 3 * scale;
+    const angles = [-2.6, -2.0, -1.2, -0.4, 0.3, 0.9];
+    angles.forEach((ang) => {
+      const fx = topX + Math.cos(ang) * 26 * scale;
+      const fy = topY + Math.sin(ang) * 18 * scale + 8 * scale;
+      ctx.beginPath();
+      ctx.moveTo(topX, topY);
+      ctx.quadraticCurveTo((topX + fx) * 0.5, topY - 8 * scale, fx, fy);
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  // ==========================================================================
+  // PART B: WORLD-SYNCED STATIONS, LEVEL CROSSINGS (CNGs/RICKSHAWS) & TRACKS
+  // ==========================================================================
+  _drawWorldStationsAndCrossingsBehindTrain(ctx, w, h, trackSurfaceY, dKm, physics) {
+    // Locomotive nose is positioned at x = w * 0.72.
+    // Scale: 1.0 km in simulation = 1800 pixels on screen
+    const pxPerKm = 1800;
+    const locoFrontX = w * 0.72;
+
+    // 1. Draw All Stations within visible range
+    physics.route.stations.forEach((st) => {
+      const screenX = locoFrontX + (st.km - dKm) * pxPerKm;
+      if (screenX > -650 && screenX < w + 650) {
+        this._drawDetailedStationPlatform(ctx, screenX, trackSurfaceY, st, physics);
+      }
+    });
+
+    // 2. Draw Level Crossings (Rail Gates) with Animated Barrier, Gateman, CNGs & Rickshaws
+    physics.route.events.forEach((ev) => {
+      if (ev.type === "level_crossing") {
+        const screenX = locoFrontX + (ev.km - dKm) * pxPerKm;
+        if (screenX > -400 && screenX < w + 450) {
+          this._drawAnimatedRailGate(ctx, screenX, trackSurfaceY, ev, physics);
+        }
+      } else if (ev.type === "whistle_board") {
+        const screenX = locoFrontX + (ev.km - dKm) * pxPerKm;
+        if (screenX > -100 && screenX < w + 100) {
+          this._drawWhistleBoard(ctx, screenX, trackSurfaceY);
+        }
+      }
+    });
+  }
+
+  _drawDetailedStationPlatform(ctx, centerX, trackY, st, physics) {
+    ctx.save();
+    const platW = 560;
+    const platX = centerX - platW * 0.55;
+    const platTopY = trackY - 26;
+
+    // 1. Iconic Station Roof Architecture
+    if (st.landmark === "kamalapur_canopy") {
+      // Kamalapur Railway Station's Famous Scalloped Concrete Parasol Arches!
+      for (let i = 0; i < 6; i++) {
+        const ax = platX + i * 92;
+        ctx.fillStyle = "#e2e8f0";
+        ctx.beginPath();
+        ctx.moveTo(ax, platTopY - 95);
+        ctx.quadraticCurveTo(ax + 46, platTopY - 148, ax + 92, platTopY - 95);
+        ctx.lineTo(ax + 78, platTopY - 82);
+        ctx.quadraticCurveTo(ax + 46, platTopY - 118, ax + 14, platTopY - 82);
+        ctx.closePath();
+        ctx.fill();
+
+        // Angled concrete support pillars
+        ctx.strokeStyle = "#cbd5e1";
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(ax + 46, platTopY);
+        ctx.lineTo(ax + 14, platTopY - 85);
+        ctx.moveTo(ax + 46, platTopY);
+        ctx.lineTo(ax + 78, platTopY - 85);
+        ctx.stroke();
+      }
+    } else if (st.landmark === "coxsbazar_oyster") {
+      // Cox's Bazar Iconic Oyster-Shaped Glass & Steel Mega-Dome!
+      const domeGrad = ctx.createLinearGradient(platX, platTopY - 165, platX, platTopY);
+      domeGrad.addColorStop(0, "rgba(56, 189, 248, 0.85)");
+      domeGrad.addColorStop(1, "rgba(15, 23, 42, 0.9)");
+      ctx.fillStyle = domeGrad;
+      ctx.beginPath();
+      ctx.moveTo(platX + 20, platTopY);
+      ctx.bezierCurveTo(platX + 110, platTopY - 185, platX + 440, platTopY - 185, platX + 540, platTopY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = "#f8fafc";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+    } else {
+      // Classic Bangladeshi Heritage Red-Brick & Tin Veranda Station Building
+      ctx.fillStyle = "#991b1b";
+      ctx.fillRect(platX + 60, platTopY - 88, 420, 88);
+      // Corrugated veranda canopy
+      ctx.fillStyle = "#334155";
+      ctx.beginPath();
+      ctx.moveTo(platX + 30, platTopY - 58);
+      ctx.lineTo(platX + 60, platTopY - 76);
+      ctx.lineTo(platX + 480, platTopY - 76);
+      ctx.lineTo(platX + 510, platTopY - 58);
+      ctx.closePath();
+      ctx.fill();
+      // Support columns
+      ctx.fillStyle = "#e2e8f0";
+      for (let c = 0; c < 6; c++) {
+        ctx.fillRect(platX + 55 + c * 85, platTopY - 58, 5, 58);
+      }
+    }
+
+    // 2. Concrete Platform Base & Yellow Tactile Safety Line
+    ctx.fillStyle = "#475569";
+    ctx.fillRect(platX, platTopY, platW, 28);
+    ctx.fillStyle = "#facc15";
+    ctx.fillRect(platX, platTopY, platW, 4);
+
+    // 3. Official Bangladesh Railway Green & White Bilingual Station Nameboard
+    const signX = centerX - 110;
+    const signY = platTopY - 76;
+    ctx.fillStyle = "#006a4e";
+    ctx.strokeStyle = "#facc15";
+    ctx.lineWidth = 2.5;
+    ctx.fillRect(signX, signY, 220, 38);
+    ctx.strokeRect(signX, signY, 220, 38);
+    // Sign posts
+    ctx.fillStyle = "#cbd5e1";
+    ctx.fillRect(signX + 18, signY + 38, 4, 38);
+    ctx.fillRect(signX + 198, signY + 38, 4, 38);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 13px 'Segoe UI', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(st.bn || st.name, centerX, signY + 17);
+    ctx.fillStyle = "#fde047";
+    ctx.font = "bold 10px sans-serif";
+    ctx.fillText(st.name.toUpperCase(), centerX, signY + 31);
+
+    // 4. Platform Tong Tea Stall ("গরম চা") with Steaming Kettle
+    const stallX = platX + 45;
+    ctx.fillStyle = "#78350f";
+    ctx.fillRect(stallX, platTopY - 38, 52, 38);
+    ctx.fillStyle = "#dc2626";
+    ctx.fillRect(stallX - 4, platTopY - 44, 60, 7);
+    ctx.fillStyle = "#fef08a";
+    ctx.font = "bold 9px sans-serif";
+    ctx.fillText("গরম চা স্টল", stallX + 26, platTopY - 22);
+
+    // 5. Animated Passengers, Coolies & Hawkers on the Platform
+    for (let p = 0; p < 11; p++) {
+      // When train is boarding at this station, passengers walk toward the coach doors!
+      const walkShift = physics.isBoarding && physics.atStation && physics.atStation.id === st.id
+        ? Math.sin(this.timeSec * 5 + p) * 14
+        : Math.sin(this.timeSec * 1.8 + p) * 3;
+      const px = platX + 120 + p * 36 + walkShift;
+      const py = platTopY;
+      this._drawAnimatedPerson(ctx, px, py, p);
+    }
+
+    // 6. Single-Line Token Pointsman Holding Up the Golden Neale's Ball Token Hoop!
+    if (st.tokenExchange) {
+      const pmX = centerX + 165;
+      const pmY = platTopY;
+      const caught = Boolean(physics.tokenExchangeDoneMap[st.id]);
+
+      // Pointsman in dark blue Bangladesh Railway uniform
+      ctx.fillStyle = "#1e3a8a";
+      ctx.fillRect(pmX - 6, pmY - 34, 12, 22);
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(pmX - 5, pmY - 12, 4, 12);
+      ctx.fillRect(pmX + 1, pmY - 12, 4, 12);
+      ctx.fillStyle = "#fbbf24";
+      ctx.beginPath();
+      ctx.arc(pmX, pmY - 40, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Waving Green Flag in left hand
+      ctx.fillStyle = "#10b981";
+      ctx.fillRect(pmX + 8, pmY - 44 + Math.sin(this.timeSec * 8) * 3, 16, 11);
+
+      // Raised Right Arm holding the Golden Circular Token Hoop!
+      if (!caught) {
+        const hoopX = pmX - 18;
+        const hoopY = pmY - 46 + Math.sin(this.timeSec * 6) * 3;
+        ctx.strokeStyle = "#facc15";
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.arc(hoopX, hoopY, 13, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Glowing indicator banner
+        ctx.fillStyle = "rgba(120, 53, 15, 0.92)";
+        ctx.fillRect(pmX - 95, pmY - 88, 190, 24);
+        ctx.strokeStyle = "#facc15";
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(pmX - 95, pmY - 88, 190, 24);
+        ctx.fillStyle = "#fef08a";
+        ctx.font = "bold 11px sans-serif";
+        ctx.fillText("🟡 TOKEN HOOP READY! PRESS [O]", pmX, pmY - 72);
+      } else {
+        ctx.fillStyle = "#34d399";
+        ctx.font = "bold 11px sans-serif";
+        ctx.fillText("✅ TOKEN EXCHANGED!", pmX, pmY - 68);
+      }
+    }
+
+    ctx.restore();
+  }
+
+  _drawAnimatedPerson(ctx, x, groundY, seed) {
+    const legSwing = Math.sin(this.timeSec * 6 + seed) * 3;
+    const colors = ["#e11d48", "#0284c7", "#16a34a", "#d97706", "#7c3aed", "#0d9488"];
+    const shirtColor = colors[seed % colors.length];
+
+    // Legs
+    ctx.strokeStyle = "#1e293b";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(x, groundY - 12);
+    ctx.lineTo(x - 3 + legSwing, groundY);
+    ctx.moveTo(x, groundY - 12);
+    ctx.lineTo(x + 3 - legSwing, groundY);
+    ctx.stroke();
+
+    // Torso (Panjabi / Shirt / Saree)
+    ctx.fillStyle = shirtColor;
+    ctx.fillRect(x - 5, groundY - 27, 10, 16);
+
+    // Head
+    ctx.fillStyle = "#f59e0b";
+    ctx.beginPath();
+    ctx.arc(x, groundY - 32, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Every 4th person is a Coolie / Hawker carrying a basket on their head!
+    if (seed % 4 === 0) {
+      ctx.fillStyle = "#b45309";
+      ctx.fillRect(x - 8, groundY - 41, 16, 5);
+    }
+  }
+
+  _drawAnimatedRailGate(ctx, centerX, trackY, ev, physics) {
+    ctx.save();
+    // Asphalt road crossing the track embankment
+    ctx.fillStyle = "#334155";
+    ctx.fillRect(centerX - 48, trackY - 22, 96, 55);
+    ctx.strokeStyle = "#facc15";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.moveTo(centerX, trackY - 22);
+    ctx.lineTo(centerX, trackY + 33);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Waiting / Encroaching Bangladeshi Vehicles (Green CNG Auto-Rickshaw & Colorful Cycle-Rickshaw)
+    // When physics.encroachingHazardActive is true, they sit dangerously close to the rail until Horn [SPACE] is blown!
+    const retreatOffset = physics.encroachingHazardActive ? 0 : 42;
+
+    // 1. Authentic Green Bangladeshi CNG Auto-Rickshaw
+    const cngX = centerX - 24 - retreatOffset;
+    const cngY = trackY - 14;
+    ctx.fillStyle = "#16a34a"; // Signature Dhaka/Ctg Green CNG body
+    ctx.fillRect(cngX - 22, cngY - 22, 44, 18);
+    ctx.fillStyle = "#1e293b"; // Black canvas hood
+    ctx.beginPath();
+    ctx.moveTo(cngX - 20, cngY - 22);
+    ctx.lineTo(cngX - 10, cngY - 34);
+    ctx.lineTo(cngX + 18, cngY - 34);
+    ctx.lineTo(cngX + 22, cngY - 22);
+    ctx.closePath();
+    ctx.fill();
+    // CNG Windshield & headlight
+    ctx.fillStyle = "#bae6fd";
+    ctx.fillRect(cngX + 12, cngY - 31, 8, 9);
+    // CNG Wheels
+    ctx.fillStyle = "#090d16";
+    ctx.beginPath();
+    ctx.arc(cngX - 13, cngY - 3, 6, 0, Math.PI * 2);
+    ctx.arc(cngX + 15, cngY - 3, 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Traditional Colorful Bangladeshi Cycle-Rickshaw
+    const rickX = centerX + 22 + retreatOffset;
+    const rickY = trackY - 14;
+    ctx.fillStyle = "#f43f5e"; // Vibrant hood
+    ctx.beginPath();
+    ctx.arc(rickX + 8, rickY - 24, 14, Math.PI, 0);
+    ctx.fill();
+    ctx.strokeStyle = "#fde047";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(rickX + 8, rickY - 8, 9, 0, Math.PI * 2);
+    ctx.arc(rickX - 14, rickY - 8, 9, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 3. Level Crossing Gate Post, Flashing Red Warning Lights & Rotating Barrier Arm
+    const postX = centerX - 52;
+    ctx.fillStyle = "#e2e8f0";
+    ctx.fillRect(postX - 4, trackY - 72, 8, 65);
+
+    // Flashing red crossbuck lamps
+    const flash = Math.floor(this.timeSec * 4) % 2 === 0;
+    ctx.fillStyle = flash ? "#ef4444" : "#450a0a";
+    ctx.beginPath();
+    ctx.arc(postX - 6, trackY - 58, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = !flash ? "#ef4444" : "#450a0a";
+    ctx.beginPath();
+    ctx.arc(postX + 6, trackY - 58, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Red & White Striped Barrier Boom
+    const boomAngle = physics.encroachingHazardActive ? -0.38 : 0.0;
+    ctx.save();
+    ctx.translate(postX, trackY - 38);
+    ctx.rotate(boomAngle);
+    for (let seg = 0; seg < 6; seg++) {
+      ctx.fillStyle = seg % 2 === 0 ? "#ef4444" : "#ffffff";
+      ctx.fillRect(seg * 16, -3, 16, 6);
+    }
+    ctx.restore();
+
+    if (physics.encroachingHazardActive) {
+      ctx.fillStyle = "rgba(127, 29, 29, 0.92)";
+      ctx.fillRect(centerX - 135, trackY - 102, 270, 24);
+      ctx.fillStyle = "#fef08a";
+      ctx.font = "bold 11px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("⚠️ CNG ON TRACK! HOLD HORN [SPACE] TO CLEAR!", centerX, trackY - 86);
     }
     ctx.restore();
   }
 
-  _drawGroundBiome(ctx, w, h, horizonY, physics) {
-    const routeId = physics.route.id;
-    const groundGrad = ctx.createLinearGradient(0, horizonY, 0, h);
+  _drawWhistleBoard(ctx, x, trackY) {
+    ctx.save();
+    ctx.fillStyle = "#f8fafc";
+    ctx.fillRect(x - 2, trackY - 54, 4, 48);
+    ctx.fillStyle = "#facc15";
+    ctx.strokeStyle = "#0f172a";
+    ctx.lineWidth = 2;
+    ctx.fillRect(x - 16, trackY - 78, 32, 26);
+    ctx.strokeRect(x - 16, trackY - 78, 32, 26);
+    ctx.fillStyle = "#0f172a";
+    ctx.font = "bold 11px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("W/L", x, trackY - 61);
+    ctx.restore();
+  }
 
-    if (routeId === "haor_mohanganj" || physics.onBridge) {
-      // Flooded Haor Basin or Major River (Padma / Jamuna / Meghna)
-      groundGrad.addColorStop(0, "#0e7490");
-      groundGrad.addColorStop(0.35, "#155e75");
-      groundGrad.addColorStop(1, "#083344");
-    } else if (this.weatherMode === "night_express") {
-      groundGrad.addColorStop(0, "#05100c");
-      groundGrad.addColorStop(1, "#020604");
-    } else {
-      // Lush Alluvial Emerald Paddy Fields of Bengal
-      groundGrad.addColorStop(0, "#15803d");
-      groundGrad.addColorStop(0.4, "#166534");
-      groundGrad.addColorStop(1, "#14532d");
+  _drawSideTrackBed(ctx, w, h, trackSurfaceY, dKm, physics) {
+    ctx.save();
+    // 1. Crushed Granite Ballast Embankment Slope
+    const balGrad = ctx.createLinearGradient(0, trackSurfaceY, 0, h);
+    balGrad.addColorStop(0, "#475569");
+    balGrad.addColorStop(0.25, "#334155");
+    balGrad.addColorStop(1, "#0f172a");
+    ctx.fillStyle = balGrad;
+    ctx.fillRect(0, trackSurfaceY, w, h - trackSurfaceY);
+
+    // Ballast texture pebbles scrolling at 1.0x world speed
+    const scrollPx = (dKm * 1800) % 24;
+    ctx.fillStyle = "#1e293b";
+    for (let sx = -scrollPx; sx < w + 24; sx += 24) {
+      // Concrete Sleepers (Ties)
+      ctx.fillStyle = "#94a3b8";
+      ctx.fillRect(sx, trackSurfaceY - 2, 13, 8);
+      // Pandrol rail fastening clips
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(sx + 2, trackSurfaceY - 4, 9, 3);
     }
 
+    // Continuous Welded Steel Rail Head & Web
+    ctx.fillStyle = "#e2e8f0";
+    ctx.fillRect(0, trackSurfaceY - 7, w, 4);
+    ctx.fillStyle = "#64748b";
+    ctx.fillRect(0, trackSurfaceY - 3, w, 3);
+    ctx.restore();
+  }
+
+  // ==========================================================================
+  // PART C: STUDIO-GRADE ANIMATED LOCOMOTIVE & PASSENGER COACH CONSIST
+  // ==========================================================================
+  _drawProfessionalAnimatedTrain(ctx, w, h, trackSurfaceY, physics, dt) {
+    const loco = physics.loco;
+    const locoWidth = 258;
+    const locoHeight = 76;
+    const locoX = w * 0.62;
+    const suspensionBounce = Math.sin(this.timeSec * 14) * Math.min(2.2, physics.speedKmh * 0.025);
+    const railTopY = trackSurfaceY - 7;
+    const wheelRadius = 13;
+    const bodyBottomY = railTopY - wheelRadius * 2 + 4 + suspensionBounce;
+    const bodyTopY = bodyBottomY - locoHeight;
+
+    // 1. Update & Draw Diesel Exhaust Smoke Plume from Locomotive Stack
+    this._updateAndDrawExhaustSmoke(ctx, locoX + 108, bodyTopY, physics, dt);
+
+    // 2. Draw Trailing PT INKA / LHB Red-and-Green Passenger Coaches (3 visible coaches behind loco)
+    const coachWidth = 228;
+    const coachGap = 12;
+    for (let c = 0; c < 3; c++) {
+      const cx = locoX - (c + 1) * (coachWidth + coachGap);
+      if (cx + coachWidth > -40) {
+        this._drawDetailedPassengerCoach(
+          ctx,
+          cx,
+          bodyBottomY + 4,
+          coachWidth,
+          locoHeight - 6,
+          railTopY,
+          wheelRadius,
+          c + 1,
+          physics
+        );
+      }
+    }
+
+    // 3. Draw Flexible Coupler & Air Brake Hoses between Locomotive & First Coach
+    ctx.fillStyle = "#0f172a";
+    ctx.fillRect(locoX - coachGap, bodyBottomY - 12, coachGap + 4, 6);
+    ctx.strokeStyle = "#dc2626";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(locoX - coachGap, bodyBottomY - 8);
+    ctx.quadraticCurveTo(locoX - coachGap * 0.5, bodyBottomY + 4, locoX, bodyBottomY - 8);
+    ctx.stroke();
+
+    // 4. Draw Lead Bangladesh Railway Diesel-Electric Locomotive!
+    this._drawDetailedLocomotive(
+      ctx,
+      locoX,
+      bodyTopY,
+      locoWidth,
+      locoHeight,
+      railTopY,
+      wheelRadius,
+      loco,
+      physics,
+      dt
+    );
+  }
+
+  _drawDetailedLocomotive(ctx, x, topY, w, h, railTopY, wheelR, loco, physics, dt) {
+    ctx.save();
+    const bottomY = topY + h;
+
+    // A. Two 3-Axle Co-Co Bogie Trucks (6 Animated Rotating Wheels with Spokes, Springs & Brake Sparks!)
+    const bogiePositions = [x + 48, x + w - 62];
+    bogiePositions.forEach((bx) => {
+      this._drawCoCoBogie(ctx, bx, railTopY, wheelR, physics, dt);
+    });
+
+    // Underframe Fuel Tank between bogies (4,500 Liter Black Steel Tank with Sight Gauge)
+    const tankGrad = ctx.createLinearGradient(x + 92, bottomY - 4, x + 92, bottomY + 16);
+    tankGrad.addColorStop(0, "#334155");
+    tankGrad.addColorStop(0.5, "#0f172a");
+    tankGrad.addColorStop(1, "#020617");
+    ctx.fillStyle = tankGrad;
+    ctx.beginPath();
+    ctx.roundRect(x + 95, bottomY - 2, 68, 17, 5);
+    ctx.fill();
+    ctx.strokeStyle = "#475569";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // B. Locomotive Main Body Shell (Aerodynamic Slanted Nose & Long Hood)
+    const bodyGrad = ctx.createLinearGradient(x, topY, x, bottomY);
+    bodyGrad.addColorStop(0, this._brightenHex(loco.liveryPrimary, 18));
+    bodyGrad.addColorStop(0.45, loco.liveryPrimary);
+    bodyGrad.addColorStop(1, this._darkenHex(loco.liveryPrimary, 22));
+
+    ctx.fillStyle = bodyGrad;
+    ctx.beginPath();
+    ctx.moveTo(x, bottomY);
+    ctx.lineTo(x, topY + 6);
+    ctx.quadraticCurveTo(x, topY, x + 8, topY);
+    ctx.lineTo(x + w - 26, topY); // Roof line to cab front
+    ctx.lineTo(x + w - 8, topY + 26); // Slanted aerodynamic cab windshield
+    ctx.lineTo(x + w, topY + 32); // Short nose hood
+    ctx.lineTo(x + w, bottomY);
+    ctx.closePath();
+    ctx.fill();
+
+    // Livery Secondary Stripe (Bangladesh Flag Vermilion Red or Classic BR Gold)
+    ctx.fillStyle = loco.liverySecondary || "#f42a41";
+    ctx.fillRect(x, topY + h * 0.48, w - 3, 16);
+
+    // Gold Accent Pinstripe
+    ctx.fillStyle = loco.liveryAccent || "#ffd700";
+    ctx.fillRect(x, topY + h * 0.48 - 3, w - 4, 3);
+    ctx.fillRect(x, topY + h * 0.48 + 16, w - 2, 2.5);
+
+    // C. Long-Hood Radiator Louvers, Engine Access Doors & Dynamic Brake Roof Blister
+    ctx.fillStyle = "rgba(9, 13, 22, 0.58)";
+    // Radiator intake grilles
+    for (let g = 0; g < 5; g++) {
+      const gx = x + 14 + g * 26;
+      ctx.fillRect(gx, topY + 10, 20, 20);
+      // Louver slats (open wider if ALP opened radiator louvers!)
+      ctx.strokeStyle = physics.radiatorLouversOpen ? "#38bdf8" : "#64748b";
+      ctx.lineWidth = 1.5;
+      for (let s = 0; s < 4; s++) {
+        ctx.beginPath();
+        ctx.moveTo(gx + 2, topY + 13 + s * 4.5);
+        ctx.lineTo(gx + 18, topY + 13 + s * 4.5);
+        ctx.stroke();
+      }
+    }
+
+    // Engine room inspection doors seams
+    ctx.strokeStyle = "rgba(15, 23, 42, 0.5)";
+    ctx.lineWidth = 1;
+    for (let d = 0; d < 6; d++) {
+      ctx.strokeRect(x + 18 + d * 24, topY + 34, 20, 34);
+    }
+
+    // Roof Exhaust Stack & Dynamic Brake Fan Housing
+    ctx.fillStyle = "#1e293b";
+    ctx.fillRect(x + 102, topY - 7, 14, 7);
+    ctx.fillRect(x + 32, topY - 4, 48, 4);
+
+    // Dual Brass Pneumatic Roof Horn Trumpets (Nathan AirChime)
+    ctx.fillStyle = "#f59e0b";
+    ctx.fillRect(x + w - 58, topY - 7, 14, 5);
+    ctx.beginPath();
+    ctx.moveTo(x + w - 44, topY - 7);
+    ctx.lineTo(x + w - 36, topY - 10);
+    ctx.lineTo(x + w - 36, topY - 1);
+    ctx.closePath();
+    ctx.fill();
+
+    // Expanding Acoustic Shockwave Rings when Horn [SPACE] is blown!
+    if (physics.hornActive) {
+      for (let r = 1; r <= 3; r++) {
+        const rad = ((this.timeSec * 90 + r * 22) % 65);
+        ctx.strokeStyle = `rgba(250, 204, 21, ${1 - rad / 65})`;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(x + w - 32, topY - 6, rad, -Math.PI * 0.45, Math.PI * 0.25);
+        ctx.stroke();
+      }
+    }
+
+    // D. Authentic Bilingual Signage & Locomotive Road Number Plate
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 10px 'Segoe UI', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("বাংলাদেশ রেলওয়ে • BANGLADESH RAILWAY", x + 98, topY + h * 0.48 + 11.5);
+
+    // Number plate under cab window
+    ctx.fillStyle = "#090d16";
+    ctx.strokeStyle = "#facc15";
+    ctx.lineWidth = 1.5;
+    ctx.fillRect(x + w - 76, topY + 44, 46, 16);
+    ctx.strokeRect(x + w - 76, topY + 44, 46, 16);
+    ctx.fillStyle = "#fde047";
+    ctx.font = "bold 10px Consolas, monospace";
+    ctx.fillText(loco.code.split(" ")[0], x + w - 53, topY + 55);
+
+    // E. Cab Windows with Animated Loco Pilot (LP) & Assistant Loco Pilot (ALP)!
+    // Side Cab Window (ALP & LP)
+    ctx.fillStyle = "#0f172a";
+    ctx.fillRect(x + w - 78, topY + 10, 46, 24);
+    const glassGrad = ctx.createLinearGradient(x + w - 76, topY + 12, x + w - 34, topY + 32);
+    glassGrad.addColorStop(0, "#38bdf8");
+    glassGrad.addColorStop(1, "#0369a1");
+    ctx.fillStyle = glassGrad;
+    ctx.fillRect(x + w - 76, topY + 12, 42, 20);
+
+    // LP Silhouette at Controls
+    ctx.fillStyle = "#0f172a";
+    ctx.beginPath();
+    ctx.arc(x + w - 44, topY + 20, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(x + w - 49, topY + 25, 10, 7);
+
+    // ALP Leaning Out Cab Window to Snatch Token Hoop when near Token Station!
+    const alpLeaning = Boolean(physics.nearTokenStation && !physics.tokenExchangeDoneMap[physics.nearTokenStation.id]);
+    ctx.fillStyle = "#f59e0b";
+    ctx.beginPath();
+    ctx.arc(x + w - 65, topY + (alpLeaning ? 18 : 21), 5, 0, Math.PI * 2);
+    ctx.fill();
+    if (alpLeaning) {
+      // Extended arm reaching out for the Token Hoop!
+      ctx.strokeStyle = "#fde047";
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.moveTo(x + w - 65, topY + 24);
+      ctx.lineTo(x + w - 78, topY + 14 + Math.sin(this.timeSec * 10) * 3);
+      ctx.stroke();
+    }
+
+    // Slanted Front Windshield Glass
+    ctx.fillStyle = "#bae6fd";
+    ctx.beginPath();
+    ctx.moveTo(x + w - 25, topY + 6);
+    ctx.lineTo(x + w - 10, topY + 26);
+    ctx.lineTo(x + w - 19, topY + 26);
+    ctx.lineTo(x + w - 28, topY + 6);
+    ctx.closePath();
+    ctx.fill();
+
+    // F. Front Buffer Beam, Red/Yellow Hazard Chevrons, Cowcatcher Pilot & Marigold Garland!
+    ctx.fillStyle = "#dc2626";
+    ctx.fillRect(x + w - 6, bottomY - 12, 10, 14);
+    // Steel Cowcatcher (Pilot)
+    ctx.fillStyle = "#334155";
+    ctx.beginPath();
+    ctx.moveTo(x + w - 4, bottomY + 2);
+    ctx.lineTo(x + w + 12, bottomY + 14);
+    ctx.lineTo(x + w - 4, bottomY + 14);
+    ctx.closePath();
+    ctx.fill();
+
+    // Festive Marigold Garland (Genda Phul) on the Locomotive Nose!
+    for (let m = 0; m < 4; m++) {
+      ctx.fillStyle = m % 2 === 0 ? "#f97316" : "#facc15";
+      ctx.beginPath();
+      ctx.arc(x + w - 3, topY + 36 + m * 5, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // G. Volumetric Twin Headlight Beams & Ditch Lights
+    ctx.fillStyle = "#fef08a";
+    ctx.beginPath();
+    ctx.arc(x + w, topY + 34, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (physics.headlightMode === "BRIGHT") {
+      const beam = ctx.createLinearGradient(x + w, topY + 34, x + w + 280, topY + 75);
+      beam.addColorStop(0, "rgba(254, 240, 138, 0.55)");
+      beam.addColorStop(0.5, "rgba(254, 240, 138, 0.18)");
+      beam.addColorStop(1, "rgba(254, 240, 138, 0)");
+      ctx.fillStyle = beam;
+      ctx.beginPath();
+      ctx.moveTo(x + w, topY + 31);
+      ctx.lineTo(x + w + 280, topY - 10);
+      ctx.lineTo(x + w + 280, railTopY + 10);
+      ctx.lineTo(x + w, topY + 38);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Exterior Safety Handrails along the running board
+    ctx.strokeStyle = "#facc15";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + 6, bottomY - 2);
+    ctx.lineTo(x + 6, bottomY - 22);
+    ctx.lineTo(x + w - 82, bottomY - 22);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  _drawCoCoBogie(ctx, centerX, railTopY, wheelR, physics, dt) {
+    ctx.save();
+    const wheelOffsets = [-32, 0, 32]; // 3 axles per Co-Co bogie
+
+    // 1. Rotating Steel Wheels with Animated Spokes & Counterweights
+    wheelOffsets.forEach((dx) => {
+      const wx = centerX + dx;
+      const wy = railTopY - wheelR;
+
+      // Steel tyre rim
+      ctx.beginPath();
+      ctx.arc(wx, wy, wheelR, 0, Math.PI * 2);
+      ctx.fillStyle = "#1e293b";
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.stroke();
+
+      // Rotating wheel spokes & counterweight crescent
+      ctx.save();
+      ctx.translate(wx, wy);
+      ctx.rotate(this.wheelAngle + (physics.wheelSlip ? this.timeSec * 18 : 0));
+
+      ctx.strokeStyle = "#94a3b8";
+      ctx.lineWidth = 2;
+      for (let s = 0; s < 3; s++) {
+        ctx.rotate((Math.PI * 2) / 3);
+        ctx.beginPath();
+        ctx.moveTo(-wheelR + 2, 0);
+        ctx.lineTo(wheelR - 2, 0);
+        ctx.stroke();
+      }
+
+      // Bright axle hub cap
+      ctx.beginPath();
+      ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = "#f59e0b";
+      ctx.fill();
+      ctx.restore();
+
+      // Glowing Orange Brake Shoe Sparks when heavy braking!
+      if (physics.brakeCylinderPressure > 1.4 && physics.speedKmh > 12) {
+        for (let sp = 0; sp < 2; sp++) {
+          ctx.fillStyle = sp % 2 === 0 ? "#fb923c" : "#fef08a";
+          const sx = wx - wheelR - Math.random() * 14;
+          const sy = railTopY - 2 - Math.random() * 8;
+          ctx.fillRect(sx, sy, 3, 2);
+        }
+      }
+    });
+
+    // 2. Cast-Steel Bogie Side Frame & Equalizer Beam
+    ctx.fillStyle = "#334155";
+    ctx.strokeStyle = "#0f172a";
+    ctx.lineWidth = 1.5;
+    ctx.fillRect(centerX - 44, railTopY - wheelR - 6, 88, 7);
+    ctx.strokeRect(centerX - 44, railTopY - wheelR - 6, 88, 7);
+
+    // Helical Coil Suspension Springs
+    [-18, 18].forEach((sx) => {
+      ctx.strokeStyle = "#facc15";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(centerX + sx - 4, railTopY - wheelR - 14, 8, 8);
+    });
+
+    // 3. Pneumatic Rail Sander Jet Spray when Sander [X] is Active!
+    if (physics.sanderActive) {
+      ctx.fillStyle = "rgba(250, 204, 21, 0.75)";
+      for (let p = 0; p < 6; p++) {
+        const px = centerX + 42 - Math.random() * 16;
+        const py = railTopY - Math.random() * 10;
+        ctx.fillRect(px, py, 2.5, 2.5);
+      }
+    }
+
+    ctx.restore();
+  }
+
+  _drawDetailedPassengerCoach(ctx, x, bottomY, w, h, railTopY, wheelR, coachNum, physics) {
+    ctx.save();
+    const topY = bottomY - h;
+
+    // 1. Two 2-Axle Passenger Bogies per Coach
+    [x + 36, x + w - 36].forEach((bx) => {
+      [-14, 14].forEach((dx) => {
+        const wx = bx + dx;
+        const wy = railTopY - wheelR + 2;
+        ctx.beginPath();
+        ctx.arc(wx, wy, wheelR - 2, 0, Math.PI * 2);
+        ctx.fillStyle = "#1e293b";
+        ctx.fill();
+        ctx.strokeStyle = "#cbd5e1";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(wx, wy);
+        ctx.rotate(this.wheelAngle);
+        ctx.strokeStyle = "#94a3b8";
+        ctx.beginPath();
+        ctx.moveTo(-(wheelR - 4), 0);
+        ctx.lineTo(wheelR - 4, 0);
+        ctx.stroke();
+        ctx.restore();
+      });
+      ctx.fillStyle = "#334155";
+      ctx.fillRect(bx - 24, railTopY - wheelR - 2, 48, 5);
+    });
+
+    // 2. PT INKA / LHB Stainless & National Green/Red Coach Shell
+    const bodyGrad = ctx.createLinearGradient(x, topY, x, bottomY);
+    bodyGrad.addColorStop(0, "#059669");
+    bodyGrad.addColorStop(0.35, "#006a4e");
+    bodyGrad.addColorStop(1, "#064e3b");
+    ctx.fillStyle = bodyGrad;
+    ctx.beginPath();
+    ctx.roundRect(x, topY, w, h, 5);
+    ctx.fill();
+
+    // Rounded Corrugated Roof & AC Units
+    ctx.fillStyle = "#94a3b8";
+    ctx.fillRect(x + 4, topY, w - 8, 6);
+    ctx.fillStyle = "#cbd5e1";
+    ctx.fillRect(x + 35, topY - 3, 38, 3);
+    ctx.fillRect(x + w - 73, topY - 3, 38, 3);
+
+    // National Flag Vermilion Red Window Band with Gold Borders
+    ctx.fillStyle = "#f42a41";
+    ctx.fillRect(x, topY + 16, w, 24);
+    ctx.fillStyle = "#fde047";
+    ctx.fillRect(x, topY + 14, w, 2);
+    ctx.fillRect(x, topY + 40, w, 2);
+
+    // 3. Panoramic Tinted Windows with Illuminated Passengers Inside!
+    const numWindows = 7;
+    const winStart = x + 24;
+    const winStep = 26;
+    for (let i = 0; i < numWindows; i++) {
+      const wx = winStart + i * winStep;
+      const wy = topY + 19;
+      ctx.fillStyle = this.weatherMode === "night_express" ? "#fef08a" : "#bae6fd";
+      ctx.beginPath();
+      ctx.roundRect(wx, wy, 19, 15, 2);
+      ctx.fill();
+      ctx.strokeStyle = "#0f172a";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Passenger silhouette inside window
+      ctx.fillStyle = "#0f172a";
+      ctx.beginPath();
+      ctx.arc(wx + 9, wy + 7, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(wx + 5, wy + 10, 8, 4);
+    }
+
+    // 4. Coach Doors on Left & Right Ends (Open when boarding at station!)
+    const doorsOpen = Boolean(physics.isBoarding && physics.atStation);
+    [x + 5, x + w - 19].forEach((dx) => {
+      ctx.fillStyle = doorsOpen ? "#090d16" : "#047857";
+      ctx.strokeStyle = "#e2e8f0";
+      ctx.lineWidth = 1;
+      ctx.fillRect(dx, topY + 12, 14, h - 14);
+      ctx.strokeRect(dx, topY + 12, 14, h - 14);
+      if (doorsOpen) {
+        // Yellow boarding steps & passenger stepping in
+        ctx.fillStyle = "#facc15";
+        ctx.fillRect(dx + 2, bottomY - 4, 10, 3);
+      }
+    });
+
+    // 5. Bilingual Digital Destination Board & Coach Number ("ক-১", "খ-২")
+    const bengaliCoachLetters = ["ক", "খ", "গ", "ঘ", "ঙ"];
+    ctx.fillStyle = "#090d16";
+    ctx.fillRect(x + w * 0.5 - 48, topY + 45, 96, 12);
+    ctx.fillStyle = "#34d399";
+    ctx.font = "bold 8.5px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(
+      `কোচ ${bengaliCoachLetters[coachNum - 1] || coachNum} • ${physics.route.name.split(" ")[0].toUpperCase()}`,
+      x + w * 0.5,
+      topY + 54
+    );
+
+    // 6. Rubber Inter-Coach Gangway Bellows (Diaphragm)
+    ctx.fillStyle = "#1e293b";
+    ctx.fillRect(x - 10, topY + 8, 10, h - 12);
+
+    // 7. Alarm Chain Pull (ACP) Flashing External Clapper Disc & Venting Steam!
+    if (physics.alarmChainPulled && (coachNum === 1 || coachNum === physics.acpCoachNumber)) {
+      const flash = Math.floor(this.timeSec * 8) % 2 === 0;
+      ctx.fillStyle = flash ? "#ef4444" : "#facc15";
+      ctx.beginPath();
+      ctx.arc(x + w - 24, topY + 10, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#fef08a";
+      ctx.font = "bold 10px sans-serif";
+      ctx.fillText("🚨 ACP VALVE OPEN! PRESS [P]", x + w * 0.5, topY - 10);
+    }
+
+    ctx.restore();
+  }
+
+  _updateAndDrawExhaustSmoke(ctx, stackX, stackY, physics, dt) {
+    // Spawn rate and darkness scale with Throttle Notch (0..8)
+    const spawnChance = 0.35 + (physics.notch / 8) * 0.65;
+    if (Math.random() < spawnChance) {
+      this.exhaustParticles.push({
+        x: stackX,
+        y: stackY - 6,
+        vx: -28 - physics.speedKmh * 1.15 - Math.random() * 20,
+        vy: -22 - physics.notch * 4.5 - Math.random() * 12,
+        r: 6 + physics.notch * 0.9,
+        alpha: 0.35 + (physics.notch / 8) * 0.4,
+        darkness: physics.notch >= 5 ? 25 : 95
+      });
+    }
+
+    ctx.save();
+    for (let i = this.exhaustParticles.length - 1; i >= 0; i--) {
+      const p = this.exhaustParticles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.r += 18 * dt;
+      p.alpha -= 0.38 * dt;
+
+      if (p.alpha <= 0.01) {
+        this.exhaustParticles.splice(i, 1);
+        continue;
+      }
+
+      ctx.fillStyle = `rgba(${p.darkness}, ${p.darkness + 8}, ${p.darkness + 18}, ${p.alpha})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  _drawForegroundBridgeAndPlatformElements(ctx, w, h, trackSurfaceY, dKm, physics) {
+    if (!physics.onBridge) return;
+
+    ctx.save();
+    const style = physics.onBridge.bridgeStyle || "steel_truss";
+    const spanW = 140;
+    const scrollPx = (dKm * 1800) % spanW;
+
+    let mainColor = "#475569";
+    let hiColor = "#94a3b8";
+    if (style === "hardinge_crimson") {
+      // Historic 1915 Hardinge Bridge over Padma River in Deep Riveted Crimson!
+      mainColor = "#7f1d1d";
+      hiColor = "#b91c1c";
+    } else if (style === "padma_double_deck") {
+      // Padma Multipurpose Bridge Double-Deck Warren Steel Truss!
+      mainColor = "#334155";
+      hiColor = "#cbd5e1";
+    }
+
+    const deckBottomY = trackSurfaceY + 8;
+    const topChordY = trackSurfaceY - 128;
+
+    // Upper Highway Deck on Padma Multipurpose Bridge with Cars & Buses driving above the train!
+    if (style === "padma_double_deck") {
+      ctx.fillStyle = "#1e293b";
+      ctx.fillRect(0, topChordY - 14, w, 16);
+      // Animated Bus & Trucks on Padma Bridge Upper Road Deck
+      const busX = (w - ((this.timeSec * 120) % (w + 200)));
+      ctx.fillStyle = "#e11d48";
+      ctx.fillRect(busX, topChordY - 30, 56, 16);
+      ctx.fillStyle = "#fef08a";
+      for (let bw = 4; bw < 48; bw += 10) {
+        ctx.fillRect(busX + bw, topChordY - 27, 7, 6);
+      }
+    }
+
+    // Foreground Warren / Pettit Steel Truss Girder Bays passing in front of the train
+    for (let bx = -scrollPx - spanW; bx < w + spanW; bx += spanW) {
+      // Vertical riveted post
+      ctx.fillStyle = mainColor;
+      ctx.fillRect(bx - 5, topChordY, 10, deckBottomY - topChordY);
+
+      // Diagonal truss members
+      ctx.strokeStyle = hiColor;
+      ctx.lineWidth = 7;
+      ctx.beginPath();
+      ctx.moveTo(bx, deckBottomY);
+      ctx.lineTo(bx + spanW * 0.5, topChordY);
+      ctx.lineTo(bx + spanW, deckBottomY);
+      ctx.stroke();
+
+      // Massive Concrete River Pier in the Padma/Jamuna/Meghna water below
+      if (Math.abs((bx + scrollPx) % (spanW * 2)) < 10) {
+        ctx.fillStyle = "#64748b";
+        ctx.fillRect(bx - 22, deckBottomY, 44, h - deckBottomY);
+      }
+    }
+
+    // Top & Bottom Heavy Steel Chords
+    ctx.fillStyle = mainColor;
+    ctx.fillRect(0, topChordY - 4, w, 10);
+    ctx.fillRect(0, deckBottomY - 4, w, 12);
+
+    // Bridge Name Banner
+    ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
+    ctx.fillRect(w * 0.5 - 180, topChordY + 14, 360, 24);
+    ctx.fillStyle = "#fde047";
+    ctx.font = "bold 12px 'Segoe UI', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(`🌉 CROSSING: ${physics.onBridge.name.toUpperCase()}`, w * 0.5, topChordY + 30);
+
+    ctx.restore();
+  }
+
+  // ==========================================================================
+  // PART D: LIVE 3D FORWARD CAB WINDSHIELD PICTURE-IN-PICTURE (PiP) MONITOR
+  // ==========================================================================
+  _renderForwardCabPiP(ctx, w, h, physics, dt, swayX, swayY) {
+    const pipW = 290;
+    const pipH = 168;
+    const pipX = w - pipW - 14;
+    const pipY = h - pipH - 12;
+
+    ctx.save();
+    // Clip to PiP Monitor Frame
+    ctx.beginPath();
+    ctx.roundRect(pipX, pipY, pipW, pipH, 8);
+    ctx.clip();
+
+    ctx.translate(pipX, pipY);
+    this._render3DWorldOutWindow(ctx, pipW, pipH, physics, dt, swayX * 0.4, swayY * 0.4);
+
+    // Windshield Wiper & Marigold Garland inside PiP
+    ctx.save();
+    ctx.translate(pipW * 0.5, 10);
+    ctx.rotate(this.wiperAngle * 0.5);
+    ctx.strokeStyle = "#0f172a";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, pipH * 0.55);
+    ctx.stroke();
+    ctx.restore();
+
+    // PiP Header Bar
+    ctx.fillStyle = "rgba(9, 13, 22, 0.82)";
+    ctx.fillRect(0, 0, pipW, 22);
+    ctx.fillStyle = "#38bdf8";
+    ctx.font = "bold 10px 'Segoe UI', sans-serif";
+    ctx.fillText("👁️ 3D DRIVER WINDSHIELD CAM (Press [V] Fullscreen)", 8, 15);
+
+    ctx.restore();
+
+    // Outer Brass/Emerald Bezel around PiP
+    ctx.strokeStyle = "#10b981";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.roundRect(pipX, pipY, pipW, pipH, 8);
+    ctx.stroke();
+  }
+
+  // ==========================================================================
+  // PART E: FULL-SCREEN 3D FORWARD WORLD & CAB INTERIOR (FOR CAB_FIRST_PERSON)
+  // ==========================================================================
+  _render3DWorldOutWindow(ctx, w, h, physics, dt, swayX, swayY) {
+    const horizonY = h * 0.44 + swayY;
+    const vanishX = w * 0.5 + swayX * 1.4;
+
+    this._drawSkyAndClouds(ctx, w, h, horizonY, dt, physics.speedKmh / 3.6);
+    this._drawFarHorizonParallax(ctx, w, horizonY, physics.distanceKm, physics);
+
+    // Ground Plane
+    const groundGrad = ctx.createLinearGradient(0, horizonY, 0, h);
+    groundGrad.addColorStop(0, "#15803d");
+    groundGrad.addColorStop(1, "#14532d");
     ctx.fillStyle = groundGrad;
     ctx.fillRect(0, horizonY, w, h - horizonY);
 
-    // Draw Yellow Mustard Field patches (Sorisha Khet) or Haor Country Boats (Nouka)
-    if (routeId === "haor_mohanganj" || physics.onBridge) {
-      // Animated water ripples & traditional wooden Nouka country boats
-      ctx.strokeStyle = "rgba(186, 230, 253, 0.25)";
-      ctx.lineWidth = 1.5;
-      for (let r = 0; r < 14; r++) {
-        const ry = horizonY + 18 + r * 16;
-        const rx = ((r * 137 + Date.now() * 0.02) % (w * 0.85));
-        ctx.beginPath();
-        ctx.moveTo(rx, ry);
-        ctx.lineTo(rx + 35, ry);
-        ctx.stroke();
-      }
-      // Wooden Country Boat (Nouka) with colorful sail
-      const boatX = w * 0.16 + Math.sin(Date.now() * 0.0006) * 25;
-      const boatY = horizonY + 58;
-      ctx.fillStyle = "#451a03";
-      ctx.beginPath();
-      ctx.moveTo(boatX - 28, boatY);
-      ctx.quadraticCurveTo(boatX, boatY + 12, boatX + 28, boatY);
-      ctx.closePath();
-      ctx.fill();
-      // Boat canopy (Chhoi)
-      ctx.fillStyle = "#b45309";
-      ctx.fillRect(boatX - 10, boatY - 8, 20, 8);
-    }
-  }
-
-  _draw3DTrackBed(ctx, w, h, vanishX, horizonY, physics) {
-    const gauge = physics.route.gauge; // "MG", "BG", "DG"
-    const trackSpreadBottom = gauge === "MG" ? w * 0.28 : w * 0.34;
-
-    // 1. Stone Ballast Shoulder Trapezoid
+    // 3D Perspective Track Bed
+    const spread = w * 0.34;
     ctx.fillStyle = "#334155";
     ctx.beginPath();
-    ctx.moveTo(vanishX - 8, horizonY);
-    ctx.lineTo(vanishX + 8, horizonY);
-    ctx.lineTo(vanishX + trackSpreadBottom * 0.85, h);
-    ctx.lineTo(vanishX - trackSpreadBottom * 0.85, h);
+    ctx.moveTo(vanishX - 6, horizonY);
+    ctx.lineTo(vanishX + 6, horizonY);
+    ctx.lineTo(vanishX + spread * 0.8, h);
+    ctx.lineTo(vanishX - spread * 0.8, h);
     ctx.closePath();
     ctx.fill();
 
-    // Inner darker ballast core
-    ctx.fillStyle = "#1e293b";
-    ctx.beginPath();
-    ctx.moveTo(vanishX - 5, horizonY);
-    ctx.lineTo(vanishX + 5, horizonY);
-    ctx.lineTo(vanishX + trackSpreadBottom * 0.62, h);
-    ctx.lineTo(vanishX - trackSpreadBottom * 0.62, h);
-    ctx.closePath();
-    ctx.fill();
-
-    // 2. Animated Concrete/Wooden Sleepers (scrolling smoothly with physics.distanceKm)
-    const sleeperOffset = (physics.distanceKm * 1000) % 1.0; // 1 meter spacing
-    const numSleepers = 34;
-
-    for (let i = 1; i <= numSleepers; i++) {
-      const z = (i - sleeperOffset) / numSleepers; // 0 (far) to 1 (near)
-      const p = Math.pow(z, 2.25); // Perspective foreshortening
+    // Perspective Sleepers
+    const sleeperOffset = (physics.distanceKm * 1000) % 1.0;
+    for (let i = 1; i <= 26; i++) {
+      const z = (i - sleeperOffset) / 26;
+      const p = Math.pow(z, 2.2);
       const sy = horizonY + p * (h - horizonY);
-      const halfWidth = 4 + p * (trackSpreadBottom * 0.56);
-      const thickness = Math.max(1, p * 6.5);
-
-      ctx.fillStyle = i % 2 === 0 ? "#64748b" : "#475569";
-      ctx.fillRect(vanishX - halfWidth, sy - thickness * 0.5, halfWidth * 2, thickness);
+      const hw = 4 + p * (spread * 0.52);
+      ctx.fillStyle = i % 2 === 0 ? "#94a3b8" : "#64748b";
+      ctx.fillRect(vanishX - hw, sy, hw * 2, Math.max(1, p * 5));
     }
 
-    // 3. Steel Rails (2 Rails for MG/BG, 3 Rails for Dual-Gauge DG!)
-    ctx.strokeStyle = "#e2e8f0";
-    ctx.lineWidth = 3.2;
-
-    // Left Common Rail
+    // Steel Rails (with 3rd Dual-Gauge rail when on DG route)
+    ctx.strokeStyle = "#f8fafc";
+    ctx.lineWidth = 2.8;
     ctx.beginPath();
-    ctx.moveTo(vanishX - 2.5, horizonY);
-    ctx.lineTo(vanishX - trackSpreadBottom * 0.42, h);
+    ctx.moveTo(vanishX - 2, horizonY);
+    ctx.lineTo(vanishX - spread * 0.4, h);
+    ctx.moveTo(vanishX + 2, horizonY);
+    ctx.lineTo(vanishX + spread * 0.4, h);
+    if (physics.route.gauge === "DG") {
+      ctx.moveTo(vanishX + 0.8, horizonY);
+      ctx.lineTo(vanishX + spread * 0.14, h);
+    }
     ctx.stroke();
 
-    // Right Outer Rail
+    // Upcoming Signal Mast in 3D View
+    const sigX = vanishX - spread * 0.28;
+    const sigY = horizonY + (h - horizonY) * 0.45;
+    ctx.fillStyle = "#cbd5e1";
+    ctx.fillRect(sigX - 2, sigY - 48, 4, 48);
+    ctx.fillStyle = "#090d16";
+    ctx.fillRect(sigX - 7, sigY - 56, 14, 24);
+    ctx.fillStyle =
+      physics.activeSignalAspect === "RED"
+        ? "#ef4444"
+        : physics.activeSignalAspect === "GREEN"
+        ? "#22c55e"
+        : "#eab308";
     ctx.beginPath();
-    ctx.moveTo(vanishX + 2.5, horizonY);
-    ctx.lineTo(vanishX + trackSpreadBottom * 0.42, h);
-    ctx.stroke();
-
-    // Third Inner Meter-Gauge Rail if Dual Gauge (DG) route!
-    if (gauge === "DG") {
-      ctx.strokeStyle = "#cbd5e1";
-      ctx.lineWidth = 2.4;
-      ctx.beginPath();
-      ctx.moveTo(vanishX + 1.0, horizonY);
-      ctx.lineTo(vanishX + trackSpreadBottom * 0.16, h);
-      ctx.stroke();
-    }
-  }
-
-  // --------------------------------------------------------------------------
-  // 2. 3D TRACKSIDE ENTITIES (BRIDGES, LEVEL CROSSINGS, STATIONS, PEOPLE)
-  // --------------------------------------------------------------------------
-  _draw3DTracksideEntities(ctx, w, h, vanishX, horizonY, physics) {
-    const d = physics.distanceKm;
-
-    // A. Steel Truss Bridges (Padma Bridge, Hardinge Bridge, Jamuna Bridge, Bhairab Bridge)
-    if (physics.onBridge) {
-      this._drawBridgeTrussTunnel(ctx, w, h, vanishX, horizonY, physics);
-    }
-
-    // B. Repeating Trackside Trees, KM Posts, & Telegraph/Signal Poles
-    const repeatIntervalKm = 0.05; // Every 50 meters
-    const baseIndex = Math.floor(d / repeatIntervalKm);
-
-    for (let offset = 12; offset >= 1; offset--) {
-      const idx = baseIndex + offset;
-      const objKm = idx * repeatIntervalKm;
-      const distAheadKm = objKm - d;
-      if (distAheadKm <= 0.005 || distAheadKm > 0.6) continue;
-
-      // Normalized depth (1.0 = right at camera, 0.0 = horizon)
-      const z = 1.0 - distAheadKm / 0.6;
-      const p = Math.pow(z, 2.1);
-      const sy = horizonY + p * (h - horizonY);
-      const scale = 0.08 + p * 1.35;
-      const trackEdgeOffset = 12 + p * (w * 0.36);
-
-      // Draw Tropical Trees (Palm, Banana, or Tea Garden Shade Trees) on left & right
-      const side = idx % 2 === 0 ? -1 : 1;
-      const tx = vanishX + side * (trackEdgeOffset + 45 * scale);
-      this._drawBangladeshiTree(ctx, tx, sy, scale, idx);
-
-      // Every 200m: Draw Authentic White Concrete KM Post & Signal Mast
-      if (idx % 4 === 0) {
-        const postX = vanishX - trackEdgeOffset * 0.85;
-        this._drawKmPostAndSignal(ctx, postX, sy, scale, objKm, physics);
-      }
-    }
-
-    // C. Upcoming Level Crossing (Rail Gate) with Gateman, CNG Auto-Rickshaws & Rickshaws
-    for (const ev of physics.route.events) {
-      if (ev.type === "level_crossing") {
-        const distKm = ev.km - d;
-        if (distKm > 0.01 && distKm < 0.55) {
-          const z = 1.0 - distKm / 0.55;
-          const p = Math.pow(z, 2.0);
-          const sy = horizonY + p * (h - horizonY);
-          const scale = 0.12 + p * 1.4;
-          this._drawLevelCrossingScene(ctx, vanishX, sy, scale, physics.encroachingHazardActive, ev.name);
-        }
-      }
-    }
-
-    // D. Upcoming or Current Station Platform, Architecture, Crowd, Hawkers, & Token Pointsman
-    for (const st of physics.route.stations) {
-      const distKm = st.km - d;
-      if (distKm > -0.12 && distKm < 0.65) {
-        const clampedDist = Math.max(0.02, distKm);
-        const z = 1.0 - clampedDist / 0.65;
-        const p = Math.pow(Math.max(0.05, z), 1.9);
-        const sy = horizonY + p * (h - horizonY);
-        const scale = 0.15 + p * 1.45;
-        this._drawStationAndPlatformLife(ctx, vanishX, sy, scale, st, physics);
-      }
-    }
-  }
-
-  _drawBridgeTrussTunnel(ctx, w, h, vanishX, horizonY, physics) {
-    const style = physics.onBridge.bridgeStyle || "steel_truss";
-    const strutOffset = (physics.distanceKm * 1000 * 0.12) % 1.0;
-
-    // Color by iconic Bangladeshi bridge:
-    // Hardinge Bridge = Deep Crimson (#881337), Padma Bridge = Steel Grey (#64748b), Jamuna = Ochre/Steel (#475569)
-    let trussColor = "#475569";
-    let accentColor = "#94a3b8";
-    if (style === "hardinge_crimson") {
-      trussColor = "#7f1d1d";
-      accentColor = "#b91c1c";
-    } else if (style === "padma_double_deck") {
-      trussColor = "#334155";
-      accentColor = "#cbd5e1";
-    }
-
-    ctx.save();
-    for (let i = 8; i >= 1; i--) {
-      const z = (i - strutOffset) / 8;
-      const p = Math.pow(z, 1.85);
-      const by = horizonY + p * (h - horizonY);
-      const topY = horizonY - (0.08 + p * 0.42) * h;
-      const halfW = 14 + p * (w * 0.44);
-      const beamThick = Math.max(2, p * 16);
-
-      ctx.strokeStyle = i % 2 === 0 ? trussColor : accentColor;
-      ctx.lineWidth = beamThick;
-
-      // Left & Right vertical steel truss columns
-      ctx.beginPath();
-      ctx.moveTo(vanishX - halfW, by);
-      ctx.lineTo(vanishX - halfW, topY);
-      ctx.lineTo(vanishX + halfW, topY);
-      ctx.lineTo(vanishX + halfW, by);
-      ctx.stroke();
-
-      // Diagonal cross-bracing (Padma lower deck & Hardinge lattice)
-      ctx.lineWidth = Math.max(1.5, beamThick * 0.55);
-      ctx.beginPath();
-      ctx.moveTo(vanishX - halfW, topY);
-      ctx.lineTo(vanishX, topY + 25 * p);
-      ctx.lineTo(vanishX + halfW, topY);
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  _drawBangladeshiTree(ctx, x, y, scale, seed) {
-    ctx.save();
-    // Trunk
-    ctx.strokeStyle = "#451a03";
-    ctx.lineWidth = Math.max(1.5, 5 * scale);
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x, y - 48 * scale);
-    ctx.stroke();
-
-    // Palm fronds / lush tropical canopy
-    ctx.fillStyle = seed % 3 === 0 ? "#15803d" : "#166534";
-    ctx.beginPath();
-    ctx.arc(x, y - 52 * scale, 22 * scale, 0, Math.PI * 2);
+    ctx.arc(sigX, sigY - 44, 5, 0, Math.PI * 2);
     ctx.fill();
-    ctx.restore();
   }
 
-  _drawKmPostAndSignal(ctx, x, y, scale, kmVal, physics) {
+  _renderCabInteriorOverlay(ctx, w, h, physics, dt, swayX, swayY) {
     ctx.save();
-    // White KM stone post
-    const pw = 14 * scale;
-    const ph = 24 * scale;
-    ctx.fillStyle = "#f8fafc";
-    ctx.fillRect(x - pw, y - ph, pw, ph);
-    if (scale > 0.45) {
-      ctx.fillStyle = "#0f172a";
-      ctx.font = `bold ${Math.round(9 * scale)}px sans-serif`;
-      ctx.fillText(kmVal.toFixed(1), x - pw + 2, y - ph * 0.4);
-    }
+    ctx.translate(swayX * 0.3, swayY * 0.3);
 
-    // Signal Mast on left side of track
-    const mastX = x - 18 * scale;
-    const mastH = 85 * scale;
-    ctx.strokeStyle = "#cbd5e1";
-    ctx.lineWidth = Math.max(1.5, 4 * scale);
-    ctx.beginPath();
-    ctx.moveTo(mastX, y);
-    ctx.lineTo(mastX, y - mastH);
-    ctx.stroke();
-
-    // Signal Head Aspect (Green, Yellow, Double Yellow, Red)
-    const aspect = physics.activeSignalAspect;
-    let lightColor = "#22c55e";
-    if (aspect === "RED") lightColor = "#ef4444";
-    else if (aspect === "YELLOW" || aspect === "DOUBLE_YELLOW") lightColor = "#eab308";
-
+    // Cab pillars & overhead header
     ctx.fillStyle = "#0f172a";
-    ctx.fillRect(mastX - 7 * scale, y - mastH - 12 * scale, 14 * scale, 24 * scale);
+    ctx.fillRect(0, 0, w, h * 0.09);
+    ctx.fillRect(w * 0.488, h * 0.08, w * 0.024, h * 0.52);
+    ctx.fillRect(0, 0, w * 0.04, h);
+    ctx.fillRect(w * 0.96, 0, w * 0.04, h);
 
-    ctx.beginPath();
-    ctx.arc(mastX, y - mastH, 5.5 * scale, 0, Math.PI * 2);
-    ctx.fillStyle = lightColor;
-    ctx.fill();
-    ctx.restore();
-  }
-
-  _drawLevelCrossingScene(ctx, vanishX, y, scale, hazardEncroaching, gateName) {
-    ctx.save();
-    const roadHalfW = 140 * scale;
-
-    // Asphalt crossing road across the ballast
-    ctx.fillStyle = "#334155";
-    ctx.fillRect(vanishX - roadHalfW, y - 6 * scale, roadHalfW * 2, 12 * scale);
-
-    // Red & White Rail Gate Barrier Poles
-    ctx.strokeStyle = "#ef4444";
-    ctx.lineWidth = Math.max(2, 5 * scale);
-    ctx.beginPath();
-    ctx.moveTo(vanishX - roadHalfW * 0.75, y - 22 * scale);
-    ctx.lineTo(vanishX + roadHalfW * 0.75, y - 22 * scale);
-    ctx.stroke();
-
-    // Green Bangladeshi CNG Auto-Rickshaw & Cycle-Rickshaw
-    // If hazardEncroaching is true, they are right on the tracks until Horn [SPACE] is blown!
-    const cngOffset = hazardEncroaching ? 8 * scale : roadHalfW * 0.68;
-    const cngX = vanishX - cngOffset;
-    const cngY = y - 16 * scale;
-
-    // Green CNG Auto-Rickshaw body
-    ctx.fillStyle = "#16a34a";
-    ctx.fillRect(cngX - 16 * scale, cngY - 14 * scale, 32 * scale, 18 * scale);
-    ctx.fillStyle = "#1e293b"; // Canvas roof
-    ctx.fillRect(cngX - 14 * scale, cngY - 22 * scale, 28 * scale, 8 * scale);
-
-    // Colorful Cycle-Rickshaw on opposite side
-    const rickX = vanishX + (hazardEncroaching ? 12 * scale : roadHalfW * 0.68);
-    ctx.fillStyle = "#f43f5e";
-    ctx.fillRect(rickX - 12 * scale, cngY - 18 * scale, 24 * scale, 18 * scale);
-    ctx.fillStyle = "#fde047";
-    ctx.fillRect(rickX - 10 * scale, cngY - 24 * scale, 20 * scale, 6 * scale);
-
-    if (hazardEncroaching && scale > 0.35) {
-      ctx.fillStyle = "#fef08a";
-      ctx.font = `bold ${Math.max(11, Math.round(13 * scale))}px 'Segoe UI', sans-serif`;
-      ctx.textAlign = "center";
-      ctx.fillText("⚠️ CNG & RICKSHAW ON TRACK! SOUND HORN [SPACE]!", vanishX, y - 48 * scale);
-    }
-    ctx.restore();
-  }
-
-  _drawStationAndPlatformLife(ctx, vanishX, y, scale, station, physics) {
-    ctx.save();
-    const isLeft = station.platformSide !== "right";
-    const sideSign = isLeft ? -1 : 1;
-    const platEdgeX = vanishX + sideSign * (42 * scale);
-    const platWidth = 115 * scale;
-    const platX = isLeft ? platEdgeX - platWidth : platEdgeX;
-
-    // Concrete Station Platform with Yellow Safety Line
-    ctx.fillStyle = "#64748b";
-    ctx.fillRect(platX, y - 16 * scale, platWidth, 18 * scale);
-    ctx.fillStyle = "#facc15";
-    ctx.fillRect(isLeft ? platEdgeX - 4 * scale : platEdgeX, y - 16 * scale, 4 * scale, 18 * scale);
-
-    // Iconic Bangladeshi Station Roof Canopy (Kamalapur Parasol Arches or Oyster Dome)
-    ctx.fillStyle = station.landmark === "coxsbazar_oyster" ? "#38bdf8" : "#cbd5e1";
-    ctx.beginPath();
-    for (let a = 0; a < 3; a++) {
-      const archX = platX + (a + 0.5) * (platWidth / 3);
-      ctx.arc(archX, y - 56 * scale, (platWidth / 5), Math.PI, 0);
-    }
-    ctx.fill();
-
-    // Bilingual Green & White Bangladesh Railway Station Nameboard
-    if (scale > 0.25) {
-      const boardW = 110 * scale;
-      const boardH = 26 * scale;
-      const bx = platX + platWidth * 0.1;
-      const by = y - 48 * scale;
-      ctx.fillStyle = "#006a4e";
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = Math.max(1, 2 * scale);
-      ctx.fillRect(bx, by, boardW, boardH);
-      ctx.strokeRect(bx, by, boardW, boardH);
-
-      ctx.fillStyle = "#ffffff";
-      ctx.font = `bold ${Math.max(8, Math.round(10 * scale))}px 'Segoe UI', sans-serif`;
-      ctx.textAlign = "center";
-      ctx.fillText(station.bn || station.name, bx + boardW * 0.5, by + boardH * 0.65);
-    }
-
-    // Platform Passengers, Red-Shirt Coolies, & Tea Stall Hawkers
-    for (let p = 0; p < 5; p++) {
-      const px = platX + (p + 1) * (platWidth / 6);
-      const py = y - 16 * scale;
-      ctx.fillStyle = p % 2 === 0 ? "#e11d48" : "#0284c7";
-      ctx.fillRect(px - 3 * scale, py - 18 * scale, 6 * scale, 18 * scale);
-      ctx.fillStyle = "#fcd34d";
+    // Marigold Flower Garland across windshield top
+    for (let gx = w * 0.06; gx <= w * 0.94; gx += 20) {
       ctx.beginPath();
-      ctx.arc(px, py - 21 * scale, 3.5 * scale, 0, Math.PI * 2);
+      ctx.arc(gx, h * 0.095 + Math.sin(gx * 0.05) * 4, 6, 0, Math.PI * 2);
+      ctx.fillStyle = gx % 40 < 20 ? "#f97316" : "#facc15";
       ctx.fill();
     }
 
-    // If this is a Single-Line Token Exchange Station, draw the Pointsman holding out the Neale's Ball Token Hoop!
-    if (station.tokenExchange && !physics.tokenExchangeDoneMap[station.id]) {
-      const pmX = platEdgeX - sideSign * 6 * scale;
-      const pmY = y - 16 * scale;
+    // Lower Control Stand Desk
+    const deskY = h * 0.58;
+    ctx.fillStyle = "#090d16";
+    ctx.fillRect(0, deskY, w, h - deskY);
+    ctx.fillStyle = physics.loco.liveryPrimary || "#006a4e";
+    ctx.fillRect(0, deskY, w, 6);
 
-      // Pointsman uniform
-      ctx.fillStyle = "#1e3a8a";
-      ctx.fillRect(pmX - 4 * scale, pmY - 22 * scale, 8 * scale, 22 * scale);
+    ctx.fillStyle = "#fde047";
+    ctx.font = "bold 13px 'Segoe UI', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(
+      `FIRST-PERSON 3D CAB VIEW (${physics.loco.code}) — Press [V] to return to Studio Dual Train Animation`,
+      w * 0.5,
+      deskY + 32
+    );
+    ctx.restore();
+  }
 
-      // Extended arm holding the Golden Circular Token Hoop toward the locomotive cab!
-      const hoopX = pmX - sideSign * 16 * scale;
-      const hoopY = pmY - 24 * scale;
-      ctx.strokeStyle = "#facc15";
-      ctx.lineWidth = Math.max(2, 3.5 * scale);
-      ctx.beginPath();
-      ctx.arc(hoopX, hoopY, 9 * scale, 0, Math.PI * 2);
-      ctx.stroke();
-
-      if (scale > 0.35) {
-        ctx.fillStyle = "#fde047";
-        ctx.font = `bold ${Math.max(10, Math.round(12 * scale))}px 'Segoe UI', sans-serif`;
-        ctx.textAlign = "center";
-        ctx.fillText("🟡 TOKEN HOOP READY! ALP PRESS [O] (15–30 km/h)", vanishX, y - 78 * scale);
-      }
-    }
-
+  _renderAlpWindowView(ctx, w, h, physics, dt, swayX, swayY) {
+    this._renderAnimatedParallaxScene(ctx, w, h, physics, dt);
+    ctx.save();
+    ctx.strokeStyle = "#facc15";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8, 5]);
+    ctx.strokeRect(w * 0.52, h * 0.42, w * 0.36, h * 0.38);
+    ctx.fillStyle = "rgba(9, 13, 22, 0.85)";
+    ctx.fillRect(w * 0.25, h * 0.04, w * 0.5, 36);
+    ctx.fillStyle = "#fde047";
+    ctx.font = "bold 13px 'Segoe UI', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("🟡 ALP TOKEN HOOP & COACH INSPECTION VIEW — Press [O] at Token Station (15–30 km/h)", w * 0.5, h * 0.04 + 23);
     ctx.restore();
   }
 
   _drawWeatherEffects(ctx, w, h, horizonY, physics, dt) {
-    // Winter River Fog (Kuasha)
     if (this.weatherMode === "winter_fog") {
-      const fogGrad = ctx.createLinearGradient(0, horizonY - 80, 0, h * 0.78);
-      fogGrad.addColorStop(0, "rgba(203, 213, 225, 0.88)");
-      fogGrad.addColorStop(0.55, "rgba(203, 213, 225, 0.65)");
-      fogGrad.addColorStop(1, "rgba(203, 213, 225, 0.08)");
-      ctx.fillStyle = fogGrad;
+      const fog = ctx.createLinearGradient(0, horizonY - 60, 0, h);
+      fog.addColorStop(0, "rgba(226, 232, 240, 0.78)");
+      fog.addColorStop(0.6, "rgba(203, 213, 225, 0.45)");
+      fog.addColorStop(1, "rgba(203, 213, 225, 0.12)");
+      ctx.fillStyle = fog;
       ctx.fillRect(0, 0, w, h);
-    }
-
-    // Monsoon Rain Deluge (Barsha)
-    if (this.weatherMode === "monsoon_rain") {
-      ctx.strokeStyle = "rgba(186, 230, 253, 0.55)";
+    } else if (this.weatherMode === "monsoon_rain") {
+      ctx.strokeStyle = "rgba(186, 230, 253, 0.58)";
       ctx.lineWidth = 1.6;
       this.rainDrops.forEach((drop) => {
         drop.y += drop.speed * dt * 1.9;
-        drop.x -= 0.15 * dt;
+        drop.x -= 0.18 * dt;
         if (drop.y > 1.0) {
           drop.y = 0;
           drop.x = Math.random();
         }
         if (drop.x < 0) drop.x = 1.0;
-
         const rx = drop.x * w;
         const ry = drop.y * h;
         ctx.beginPath();
         ctx.moveTo(rx, ry);
-        ctx.lineTo(rx - 6, ry + drop.len);
+        ctx.lineTo(rx - 7, ry + drop.len);
         ctx.stroke();
       });
     }
   }
 
-  // --------------------------------------------------------------------------
-  // 3. AUTHENTIC BANGLADESHI LOCOMOTIVE CAB INTERIOR & DUAL-DRIVER DESK
-  // --------------------------------------------------------------------------
-  _renderCabInteriorOverlay(ctx, w, h, physics, dt, swayX, swayY) {
-    ctx.save();
-    ctx.translate(swayX * 0.35, swayY * 0.35);
-
-    const locoColor = physics.loco.liveryPrimary || "#006a4e";
-
-    // 1. Windshield Wipers (Animated Left & Right Blades)
-    [w * 0.28, w * 0.72].forEach((wx) => {
-      const wy = h * 0.09;
-      ctx.save();
-      ctx.translate(wx, wy);
-      ctx.rotate(this.wiperAngle * 0.55);
-      ctx.strokeStyle = "#0f172a";
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(0, h * 0.34);
-      ctx.stroke();
-      ctx.fillRect(-3, h * 0.18, 6, h * 0.22);
-      ctx.restore();
-    });
-
-    // 2. Cab Structural Frame (Top Header, Center Pillar, Side Pillars)
-    ctx.fillStyle = "#1e293b";
-    // Top header
-    ctx.fillRect(-20, -20, w + 40, h * 0.10);
-    // Center windshield divider pillar
-    ctx.fillRect(w * 0.485, h * 0.08, w * 0.03, h * 0.49);
-    // Left & Right A-pillars
-    ctx.fillRect(-20, 0, w * 0.055, h);
-    ctx.fillRect(w * 0.945, 0, w * 0.075, h);
-
-    // 3. Cultural Bangladeshi Cab Touches:
-    // Marigold Flower Garland (Genda Phul) draped across top of windshields!
-    for (let gx = w * 0.07; gx <= w * 0.93; gx += 22) {
-      const sag = Math.sin(((gx - w * 0.07) / (w * 0.86)) * Math.PI * 2) * 8;
-      ctx.beginPath();
-      ctx.arc(gx, h * 0.095 + Math.abs(sag), 6.5, 0, Math.PI * 2);
-      ctx.fillStyle = gx % 44 < 22 ? "#f97316" : "#facc15";
-      ctx.fill();
-    }
-
-    // Overhead Spinning Metal Cab Fan on Center Header
-    const fanX = w * 0.5;
-    const fanY = h * 0.048;
-    ctx.save();
-    ctx.translate(fanX, fanY);
-    ctx.strokeStyle = "#64748b";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(0, 0, 22, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.rotate(this.fanAngle);
-    for (let b = 0; b < 3; b++) {
-      ctx.rotate((Math.PI * 2) / 3);
-      ctx.fillStyle = "#94a3b8";
-      ctx.fillRect(-3, 2, 6, 17);
-    }
-    ctx.restore();
-
-    // Hanging Neale's Ball Token Brass Pouch on ALP Right Pillar (if carrying token)
-    if (physics.hasCurrentSectionToken) {
-      const tokX = w * 0.935;
-      const tokY = h * 0.32;
-      ctx.strokeStyle = "#f59e0b";
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.arc(tokX, tokY, 18, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.fillStyle = "#b45309";
-      ctx.beginPath();
-      ctx.arc(tokX, tokY + 12, 8, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // 4. Lower Dual-Driver Control Console Desk (Bottom 43% of Viewport)
-    const deskTopY = h * 0.57;
-    const deskGrad = ctx.createLinearGradient(0, deskTopY, 0, h);
-    deskGrad.addColorStop(0, "#1e293b");
-    deskGrad.addColorStop(0.12, "#0f172a");
-    deskGrad.addColorStop(1, "#020617");
-    ctx.fillStyle = deskGrad;
-    ctx.fillRect(-20, deskTopY, w + 40, h - deskTopY + 20);
-
-    // Locomotive Livery Accent Trim Strip along Desk Edge
-    ctx.fillStyle = locoColor;
-    ctx.fillRect(0, deskTopY, w, 6);
-    ctx.fillStyle = physics.loco.liverySecondary || "#f42a41";
-    ctx.fillRect(0, deskTopY + 6, w, 3);
-
-    // 5. Analog Cab Gauges with Real-Time Animated Needles
-    const gaugeY = deskTopY + 68;
-    // Gauge 1: Speedometer (km/h)
-    this._drawAnalogGauge(ctx, w * 0.16, gaugeY, 46, physics.speedKmh, 0, 120, "SPEED", "km/h", physics.currentSpeedLimitKmh);
-    // Gauge 2: Traction Ammeter (Amps)
-    this._drawAnalogGauge(ctx, w * 0.30, gaugeY, 42, physics.amps, 0, 1200, "LOAD", "AMPS", 950);
-    // Gauge 3: Duplex Air Brake Gauge (BP = Green needle, BC = Red needle)
-    this._drawBrakeDuplexGauge(ctx, w * 0.44, gaugeY, 44, physics.brakePipePressure, physics.brakeCylinderPressure);
-    // Gauge 4: Prime Mover RPM & Water Temp (ALP Side)
-    this._drawAnalogGauge(ctx, w * 0.72, gaugeY, 42, physics.rpm, 0, 1000, "ENGINE", "RPM", 910);
-    this._drawAnalogGauge(ctx, w * 0.85, gaugeY, 42, physics.waterTempC, 40, 110, "COOLANT", "°C", 92);
-
-    // 6. Central In-Cab Signal & Co-Op Status Display Unit (EM2000 / BR Cab Aspect Box)
-    this._drawCabSignalBox(ctx, w * 0.575, deskTopY + 24, 128, 92, physics);
-
-    // 7. Thermos Tea Cup ("Cha") on Dashboard Ledge
-    const cupX = w * 0.655;
-    const cupY = deskTopY - 8;
-    ctx.fillStyle = "#d97706";
-    ctx.fillRect(cupX, cupY - 18, 16, 18);
-    ctx.strokeStyle = "#fef3c7";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(cupX, cupY - 18, 16, 18);
-
-    ctx.restore();
+  _brightenHex(hex, pct) {
+    const num = parseInt((hex || "#006a4e").replace("#", ""), 16);
+    const r = Math.min(255, ((num >> 16) & 255) + pct);
+    const g = Math.min(255, ((num >> 8) & 255) + pct);
+    const b = Math.min(255, (num & 255) + pct);
+    return `rgb(${r},${g},${b})`;
   }
 
-  _drawAnalogGauge(ctx, cx, cy, r, value, minVal, maxVal, title, unit, redlineVal) {
-    ctx.save();
-    // Brass/Steel Bezel
-    ctx.beginPath();
-    ctx.arc(cx, cy, r + 4, 0, Math.PI * 2);
-    ctx.fillStyle = "#475569";
-    ctx.fill();
-
-    // Dial face
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fillStyle = "#090d16";
-    ctx.fill();
-
-    const startAng = Math.PI * 0.75;
-    const endAng = Math.PI * 2.25;
-    const totalSpan = endAng - startAng;
-
-    // Ticks
-    for (let i = 0; i <= 10; i++) {
-      const frac = i / 10;
-      const ang = startAng + frac * totalSpan;
-      const tickVal = minVal + frac * (maxVal - minVal);
-      const isDanger = redlineVal && tickVal >= redlineVal;
-
-      ctx.strokeStyle = isDanger ? "#ef4444" : "#94a3b8";
-      ctx.lineWidth = i % 2 === 0 ? 2 : 1;
-      ctx.beginPath();
-      ctx.moveTo(cx + Math.cos(ang) * (r - 8), cy + Math.sin(ang) * (r - 8));
-      ctx.lineTo(cx + Math.cos(ang) * (r - 2), cy + Math.sin(ang) * (r - 2));
-      ctx.stroke();
-    }
-
-    // Labels
-    ctx.fillStyle = "#94a3b8";
-    ctx.font = "bold 9px 'Segoe UI', sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(title, cx, cy - r * 0.32);
-    ctx.fillStyle = "#38bdf8";
-    ctx.font = "bold 12px monospace";
-    ctx.fillText(`${Math.round(value)}`, cx, cy + r * 0.52);
-    ctx.fillStyle = "#64748b";
-    ctx.font = "8px sans-serif";
-    ctx.fillText(unit, cx, cy + r * 0.74);
-
-    // Needle
-    const clamped = Math.max(minVal, Math.min(maxVal, value));
-    const needleAng = startAng + ((clamped - minVal) / (maxVal - minVal)) * totalSpan;
-    ctx.strokeStyle = redlineVal && value >= redlineVal ? "#ef4444" : "#f59e0b";
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + Math.cos(needleAng) * (r - 9), cy + Math.sin(needleAng) * (r - 9));
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(cx, cy, 4, 0, Math.PI * 2);
-    ctx.fillStyle = "#e2e8f0";
-    ctx.fill();
-    ctx.restore();
-  }
-
-  _drawBrakeDuplexGauge(ctx, cx, cy, r, bp, bc) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, r + 4, 0, Math.PI * 2);
-    ctx.fillStyle = "#475569";
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fillStyle = "#090d16";
-    ctx.fill();
-
-    const startAng = Math.PI * 0.75;
-    const totalSpan = Math.PI * 1.5;
-
-    ctx.fillStyle = "#94a3b8";
-    ctx.font = "bold 8px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("AIR BRAKE (kg/cm²)", cx, cy - r * 0.32);
-    ctx.fillStyle = "#22c55e";
-    ctx.font = "bold 10px monospace";
-    ctx.fillText(`BP:${bp.toFixed(1)}`, cx - 14, cy + r * 0.55);
-    ctx.fillStyle = "#ef4444";
-    ctx.fillText(`BC:${bc.toFixed(1)}`, cx + 15, cy + r * 0.55);
-
-    // BP Needle (Green)
-    const bpAng = startAng + (Math.min(6, Math.max(0, bp)) / 6) * totalSpan;
-    ctx.strokeStyle = "#22c55e";
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + Math.cos(bpAng) * (r - 8), cy + Math.sin(bpAng) * (r - 8));
-    ctx.stroke();
-
-    // BC Needle (Red)
-    const bcAng = startAng + (Math.min(6, Math.max(0, bc)) / 6) * totalSpan;
-    ctx.strokeStyle = "#ef4444";
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + Math.cos(bcAng) * (r - 11), cy + Math.sin(bcAng) * (r - 11));
-    ctx.stroke();
-
-    ctx.restore();
-  }
-
-  _drawCabSignalBox(ctx, x, y, bw, bh, physics) {
-    ctx.save();
-    ctx.fillStyle = "#090d16";
-    ctx.strokeStyle = "#334155";
-    ctx.lineWidth = 2;
-    ctx.fillRect(x - bw / 2, y, bw, bh);
-    ctx.strokeRect(x - bw / 2, y, bw, bh);
-
-    ctx.fillStyle = "#94a3b8";
-    ctx.font = "bold 9px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("CAB ASPECT & LIMIT", x, y + 14);
-
-    // 3 Aspect Lamps
-    const aspect = physics.activeSignalAspect;
-    const lamps = [
-      { id: "GREEN", c: "#22c55e", active: aspect === "GREEN", lx: x - 34 },
-      { id: "YELLOW", c: "#eab308", active: aspect === "YELLOW" || aspect === "DOUBLE_YELLOW", lx: x },
-      { id: "RED", c: "#ef4444", active: aspect === "RED", lx: x + 34 }
-    ];
-
-    lamps.forEach((l) => {
-      ctx.beginPath();
-      ctx.arc(l.lx, y + 36, 11, 0, Math.PI * 2);
-      ctx.fillStyle = l.active ? l.c : "rgba(51, 65, 85, 0.4)";
-      ctx.fill();
-    });
-
-    ctx.fillStyle = physics.speedKmh > physics.currentSpeedLimitKmh ? "#ef4444" : "#38bdf8";
-    ctx.font = "bold 12px monospace";
-    ctx.fillText(`LIMIT: ${physics.currentSpeedLimitKmh} km/h`, x, y + 66);
-
-    ctx.fillStyle = physics.wheelSlip ? "#ef4444" : (physics.alarmChainPulled ? "#f97316" : "#10b981");
-    ctx.font = "bold 9px sans-serif";
-    const statusText = physics.wheelSlip
-      ? "⚠️ WHEEL SLIP! [X] SAND"
-      : physics.alarmChainPulled
-      ? "🚨 ACP PULLED! [P] RESET"
-      : physics.groundRelayTripped
-      ? "⚡ GR TRIP! [K] RESET"
-      : "SYSTEMS NORMAL";
-    ctx.fillText(statusText, x, y + 83);
-    ctx.restore();
-  }
-
-  // --------------------------------------------------------------------------
-  // 4. ALP SIDE DOORWAY LEAN-OUT VIEW (TOKEN SNATCH & GUARD FLAG CHECK)
-  // --------------------------------------------------------------------------
-  _renderAlpWindowView(ctx, w, h, physics, dt, swayX, swayY) {
-    this._render3DWorldOutWindow(ctx, w, h, physics, dt, swayX, swayY);
-
-    // Draw Locomotive Side Hood & trailing PT INKA Red-Green Coaches curving behind
-    ctx.save();
-    ctx.fillStyle = physics.loco.liveryPrimary || "#006a4e";
-    ctx.fillRect(0, h * 0.12, w * 0.22, h * 0.88);
-    ctx.fillStyle = physics.loco.liverySecondary || "#f42a41";
-    ctx.fillRect(0, h * 0.52, w * 0.22, 26);
-
-    // ALP Extended Arm & Token Hoop Catch Target Zone
-    ctx.strokeStyle = "#fde047";
-    ctx.lineWidth = 3;
-    ctx.setLineDash([6, 4]);
-    ctx.strokeRect(w * 0.26, h * 0.35, w * 0.48, h * 0.36);
-
-    ctx.fillStyle = "rgba(15, 23, 42, 0.78)";
-    ctx.fillRect(w * 0.26, h * 0.73, w * 0.48, 54);
-    ctx.fillStyle = "#fde047";
-    ctx.font = "bold 13px 'Segoe UI', sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("ALP SIDE DOORWAY VIEW — Press [O] to Snatch Token Hoop (15–30 km/h) | [L] Check Guard Flag", w * 0.5, h * 0.77);
-    ctx.fillStyle = "#e2e8f0";
-    ctx.font = "12px sans-serif";
-    ctx.fillText(
-      physics.nearTokenStation
-        ? `Approaching ${physics.nearTokenStation.name} Pointsman! Current Speed: ${Math.round(physics.speedKmh)} km/h`
-        : "Clear side look-back along the 16-coach rake. Guard Brake Van visible at rear.",
-      w * 0.5,
-      h * 0.81
-    );
-    ctx.restore();
-  }
-
-  // --------------------------------------------------------------------------
-  // 5. EXTERIOR CHASE / BRIDGE FLYBY CAMERA VIEW
-  // --------------------------------------------------------------------------
-  _renderExteriorChaseView(ctx, w, h, physics, dt) {
-    const horizonY = h * 0.52;
-    this._drawSkyAndSun(ctx, w, h, horizonY);
-    this._drawDistantHorizon(ctx, w, horizonY, physics);
-    this._drawGroundBiome(ctx, w, h, horizonY, physics);
-
-    // Side-profile Viaduct / Steel Truss Bridge or Embankment
-    const bridgeY = h * 0.68;
-    ctx.fillStyle = "#334155";
-    ctx.fillRect(0, bridgeY, w, 26);
-
-    // Bridge piers
-    const pierOffset = (physics.distanceKm * 1000 * 1.8) % 180;
-    ctx.fillStyle = "#475569";
-    for (let px = -pierOffset; px < w + 180; px += 180) {
-      ctx.fillRect(px, bridgeY + 26, 28, h - bridgeY);
-    }
-
-    // Draw Trailing PT INKA / LHB Passenger Coaches in Red & Green Flag Livery
-    for (let c = 0; c < 4; c++) {
-      const cx = w * 0.04 + c * 155;
-      const cy = bridgeY - 52;
-      ctx.fillStyle = "#006a4e";
-      ctx.fillRect(cx, cy, 145, 44);
-      ctx.fillStyle = "#f42a41";
-      ctx.fillRect(cx, cy + 16, 145, 14);
-      // Coach windows
-      ctx.fillStyle = "#fef08a";
-      for (let win = 0; win < 6; win++) {
-        ctx.fillRect(cx + 10 + win * 22, cy + 6, 14, 9);
-      }
-    }
-
-    // Draw Lead Bangladesh Railway Locomotive
-    const lx = w * 0.64;
-    const ly = bridgeY - 62;
-    ctx.fillStyle = physics.loco.liveryPrimary || "#006a4e";
-    ctx.fillRect(lx, ly, 175, 54);
-    ctx.fillStyle = physics.loco.liverySecondary || "#f42a41";
-    ctx.fillRect(lx, ly + 24, 175, 14);
-
-    // Cab window & BR Logo
-    ctx.fillStyle = "#bae6fd";
-    ctx.fillRect(lx + 132, ly + 8, 30, 16);
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 10px sans-serif";
-    ctx.fillText(`BR ${physics.loco.code}`, lx + 18, ly + 20);
-
-    // Diesel Exhaust Smoke Plume proportional to Throttle Notch
-    const smokeCount = 3 + physics.notch;
-    for (let s = 0; s < smokeCount; s++) {
-      const sx = lx + 65 - s * 18 - ((Date.now() * 0.08) % 20);
-      const sy = ly - 10 - s * 9;
-      ctx.beginPath();
-      ctx.arc(sx, sy, 8 + s * 3.5, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(30, 41, 59, ${Math.max(0.08, 0.45 - s * 0.04)})`;
-      ctx.fill();
-    }
-
-    // Overhead Steel Bridge Truss if currently crossing Hardinge / Padma / Jamuna / Bhairab Bridge
-    if (physics.onBridge) {
-      ctx.strokeStyle = physics.onBridge.bridgeStyle === "hardinge_crimson" ? "#991b1b" : "#94a3b8";
-      ctx.lineWidth = 6;
-      const trussShift = (physics.distanceKm * 1000 * 2.5) % 120;
-      for (let tx = -trussShift; tx < w + 120; tx += 120) {
-        ctx.beginPath();
-        ctx.moveTo(tx, bridgeY);
-        ctx.lineTo(tx + 60, bridgeY - 115);
-        ctx.lineTo(tx + 120, bridgeY);
-        ctx.stroke();
-      }
-      ctx.beginPath();
-      ctx.moveTo(0, bridgeY - 115);
-      ctx.lineTo(w, bridgeY - 115);
-      ctx.stroke();
-    }
+  _darkenHex(hex, pct) {
+    const num = parseInt((hex || "#006a4e").replace("#", ""), 16);
+    const r = Math.max(0, ((num >> 16) & 255) - pct);
+    const g = Math.max(0, ((num >> 8) & 255) - pct);
+    const b = Math.max(0, (num & 255) - pct);
+    return `rgb(${r},${g},${b})`;
   }
 }
 
-window.BRSim.Renderer3D = new BangladeshRailway3DRenderer();
-
+window.BRSim.Renderer3D = new BangladeshRailwayStudioRenderer();
